@@ -1,0 +1,122 @@
+---
+title: "Statistical Learning Project"
+output: html_notebook
+---
+
+Sarah, Pavel, Rose, Catherine, Shravya
+East
+Statistical Learning Project
+
+```{r}
+setwd("~/Documents/GitHub/Statistical_Learning_Project/")
+```
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(readxl)
+library(caret)
+```
+
+```{r}
+#Set working directory
+setwd("~/Documents/GitHub/Stat-Learning-2018-Fall/Classification_Final_Data/Absenteeism_at_work_AAA/")
+
+#Read in the data
+dat <- read_excel("Absenteeism_at_work.xls")
+
+#Set factored variables as factors
+col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker")
+dat[col] <- lapply(dat[col], as.factor)
+
+#View the data
+glimpse(dat)
+
+#Rename the columns for easier use
+colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_expense", "Distance", "Service_time", "Age", "Work_load", "Hit_target", "Disciplinary_failure", "Education", "Children", "Social_drinker", "Social_smoker", "Pet", "Weight", "Height", "BMI", "Absent_time")
+
+#View the data
+glimpse(dat)
+```
+
+
+******Sarah Baylor*****
+Make individual plots and plots to compare the following variables with every variable that follows them.
+* Service_time
+* Age
+* Hit_target
+* Weight
+
+```{r}
+nums <- unlist(lapply(dat, is.numeric))  
+dat.num <- dat[ , nums]
+
+pairs(dat.num)
+```
+
+```{r}
+dat %>%
+  gather(-Service_time, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Service_time)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+
+```
+
+```{r}
+dat %>%
+  gather(-Age, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Age)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+
+```
+
+```{r}
+dat %>%
+  gather(-Hit_target, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Hit_target)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+
+```
+
+```{r}
+dat %>%
+  gather(-Weight, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Weight)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
+```{r}
+ggplot(data = dat,
+       aes(x = Service_time)) +
+  geom_histogram() +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data = dat,
+       aes(x = Age)) +
+  geom_histogram() + 
+  theme_minimal()
+```
+
+```{r}
+ggplot(data = dat,
+       aes(x = Hit_target)) + 
+  geom_histogram() +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data = dat,
+       aes(x = Weight)) + 
+  geom_histogram() +
+  theme_minimal()
+```
+
+
