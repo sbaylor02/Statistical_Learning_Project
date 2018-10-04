@@ -105,18 +105,38 @@ ggplot(data = dat,
   theme_minimal()
 ```
 
+******Pavel Mesa Neimane*****
+
+Make individual plots and plots to compare the following variables with every variable that follows them.
+* Day
+* Seasons
+* Social_smoker
+
 ```{r}
-ggplot(data = dat,
-       aes(x = Hit_target)) + 
-  geom_histogram() +
-  theme_minimal()
+dat %>%
+  gather(-Day, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Day)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
 ```
 
 ```{r}
-ggplot(data = dat,
-       aes(x = Weight)) + 
-  geom_histogram() +
-  theme_minimal()
+#Scatterplots for variable 'Seasons'
+dat %>%
+  gather(-Seasons, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Seasons)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
 ```
+
+```{r}
+#Scatterplots for variable 'Social_smoker'
+dat %>%
+  gather(-Social_smoker, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Social_smoker)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
 
 
