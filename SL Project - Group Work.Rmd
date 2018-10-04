@@ -21,39 +21,91 @@ library(caret)
 ```
 
 ```{r}
-#Set working directory
-setwd("~/Documents/GitHub/Stat-Learning-2018-Fall/Classification_Final_Data/Absenteeism_at_work_AAA/")
 
 #Read in the data
 dat <- read_excel("Absenteeism_at_work.xls")
 
-#Set factored variables as factors
-col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker")
-dat[col] <- lapply(dat[col], as.factor)
-
 #View the data
 glimpse(dat)
+
+```
+##Pre-Processing Data
+```{r}
+#Set factored variables as factors
+col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker", "Pet", "Son")
+dat[col] <- lapply(dat[col], as.factor)
 
 #Rename the columns for easier use
 colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_expense", "Distance", "Service_time", "Age", "Work_load", "Hit_target", "Disciplinary_failure", "Education", "Children", "Social_drinker", "Social_smoker", "Pet", "Weight", "Height", "BMI", "Absent_time")
 
 #View the data
 glimpse(dat)
+
+
+
 ```
 
 
-******Sarah Baylor*****
-Make individual plots and plots to compare the following variables with every variable that follows them.
-* Service_time
-* Age
-* Hit_target
-* Weight
+```{r}
+# Still need to reset levels on vrariables so ordered factors are graphed in order
+```
 
 ```{r}
 nums <- unlist(lapply(dat, is.numeric))  
 dat.num <- dat[ , nums]
 
 pairs(dat.num)
+```
+## EDA
+
+###ID
+### Reason
+### Month
+### Day
+### Seasons
+### Transportation Expense
+
+```{r}
+summary(dat$Transportation_expense)
+ggplot(data = dat,
+       aes(x = Transportation_expense)) +
+  geom_histogram(binwidth = 50) + 
+  theme_minimal()
+```
+
+```{r}
+dat %>%
+  gather(-Transportation_expense, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Transportation_expense)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+# Possible positive correlation seen between distance and Transportation_expense
+```
+
+###Distance
+```{r}
+summary(dat$Distance)
+ggplot(data = dat,
+       aes(x = Distance)) +
+  geom_histogram(binwidth = 5) + 
+  theme_minimal()
+```
+
+```{r}
+dat %>%
+  gather(-Distance, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Distance)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+#Possible Positive correlation seen between distance and Transportation_expense
+```
+
+### Service Time
+```{r}
+ggplot(data = dat,
+       aes(x = Service_time)) +
+  geom_histogram() +
+  theme_minimal()
 ```
 
 ```{r}
@@ -65,38 +117,7 @@ dat %>%
 
 ```
 
-```{r}
-dat %>%
-  gather(-Age, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Age)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free")
-
-```
-
-```{r}
-dat %>%
-  gather(-Hit_target, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Hit_target)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free")
-
-```
-
-```{r}
-dat %>%
-  gather(-Weight, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Weight)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free")
-```
-
-```{r}
-ggplot(data = dat,
-       aes(x = Service_time)) +
-  geom_histogram() +
-  theme_minimal()
-```
+### Age
 
 ```{r}
 ggplot(data = dat,
@@ -106,11 +127,57 @@ ggplot(data = dat,
 ```
 
 ```{r}
+dat %>%
+  gather(-Age, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Age)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+
+```
+### Workload
+
+```{r}
+summary(dat$Work_load)
+
+ggplot(data = dat,
+       aes(x = Work_load)) +
+  geom_histogram(binwidth = 5000) + 
+  theme_minimal()
+```
+
+```{r}
+dat %>%
+  gather(-Work_load, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Work_load)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
+### Hit Target
+
+```{r}
 ggplot(data = dat,
        aes(x = Hit_target)) + 
   geom_histogram() +
   theme_minimal()
 ```
+
+
+```{r}
+dat %>%
+  gather(-Hit_target, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Hit_target)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+
+```
+### Disciplinary Failure
+### Education
+### Children
+### Social Drinker
+###Social Smoker
+### Pet
+### Weight
 
 ```{r}
 ggplot(data = dat,
@@ -118,5 +185,45 @@ ggplot(data = dat,
   geom_histogram() +
   theme_minimal()
 ```
+
+
+```{r}
+dat %>%
+  gather(-Weight, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Weight)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+###Height
+### BMI
+### Absent Time
+
+******Sarah Baylor*****
+Make individual plots and plots to compare the following variables with every variable that follows them.
+* Service_time
+* Age
+* Hit_target
+* Weight
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+ggplot(data = dat,
+       aes(x = Hit_target)) + 
+  geom_histogram() +
+  theme_minimal()
+```
+
 
 
