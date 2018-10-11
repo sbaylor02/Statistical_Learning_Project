@@ -62,7 +62,26 @@ pairs(dat.num)
 ### Reason
 ### Month
 ### Day
+
+```{r}
+dat %>%
+  gather(-Day, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Day)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
+
 ### Seasons
+
+```{r}
+#Scatterplots for variable 'Seasons'
+dat %>%
+  gather(-Seasons, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Seasons)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
 ### Transportation Expense
 
 ```{r}
@@ -153,25 +172,14 @@ dat %>%
   facet_wrap(~ var_name, scales = "free")
 ```
 
-<<<<<<< HEAD
 ### Hit Target
-=======
-******Pavel Mesa Neimane*****
-
-Make individual plots and plots to compare the following variables with every variable that follows them.
-* Day
-* Seasons
-* Social_smoker
->>>>>>> 8fc025a1beca8a1f843ee45153bbc801ae745943
 
 ```{r}
-dat %>%
-  gather(-Day, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Day)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free")
+ggplot(data = dat,
+       aes(x = Hit_target)) + 
+  geom_histogram() +
+  theme_minimal()
 ```
-
 
 ```{r}
 dat %>%
@@ -186,17 +194,6 @@ dat %>%
 ### Children
 ### Social Drinker
 ###Social Smoker
-### Pet
-### Weight
-
-```{r}
-#Scatterplots for variable 'Seasons'
-dat %>%
-  gather(-Seasons, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Seasons)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free")
-```
 
 ```{r}
 #Scatterplots for variable 'Social_smoker'
@@ -208,6 +205,8 @@ dat %>%
 ```
 
 
+### Pet
+### Weight
 
 ```{r}
 dat %>%
@@ -216,36 +215,11 @@ dat %>%
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
 ```
-###Height
+### Height
 ### BMI
-### Absent Time
-
-******Sarah Baylor*****
-Make individual plots and plots to compare the following variables with every variable that follows them.
-* Service_time
-* Age
-* Hit_target
-* Weight
+### Absent_time
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-ggplot(data = dat,
-       aes(x = Hit_target)) + 
-  geom_histogram() +
-  theme_minimal()
-```
 
 
 
