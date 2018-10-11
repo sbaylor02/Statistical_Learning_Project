@@ -7,10 +7,6 @@ Sarah, Pavel, Rose, Catherine, Shravya
 East
 Statistical Learning Project
 
-```{r}
-setwd("~/Documents/GitHub/Statistical_Learning_Project/")
-```
-
 
 ```{r}
 library(tidyverse)
@@ -54,11 +50,10 @@ glimpse(dat)
 nums <- unlist(lapply(dat, is.numeric))  
 dat.num <- dat[ , nums]
 
-pairs(dat.num)
 ```
 ## EDA
 
-###ID
+### ID
 ### Reason
 ### Month
 ### Day
@@ -218,8 +213,21 @@ dat %>%
 ### Height
 ### BMI
 ### Absent_time
+```{r}
+summary(dat$Absent_time)
+
+```
 
 
+```{r}
+ggplot(data = dat,
+       aes(x = Absent_time)) +
+  geom_histogram() + 
+  theme_minimal()
+```
 
 
+```{r}
+table(dat$Absent_time)
+```
 
