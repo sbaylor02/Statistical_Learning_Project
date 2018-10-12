@@ -185,9 +185,35 @@ dat %>%
 
 ```
 ### Disciplinary Failure
+dat %>%
+  gather(-Disciplinary_failure, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Disciplinary_failure)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+  
 ### Education
+
+dat %>%
+  gather(-Education, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Education)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+  
 ### Children
+
+dat %>%
+  gather(-Children, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Children)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
 ### Social Drinker
+
+dat %>%
+  gather(-Social_drinker, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Social_drinker)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+  
 ###Social Smoker
 
 ```{r}
@@ -211,6 +237,12 @@ dat %>%
   facet_wrap(~ var_name, scales = "free")
 ```
 ### Height
+
+dat.num %>%
+  gather(-Height, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Height)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
 ### BMI
 ### Absent_time
 ```{r}
