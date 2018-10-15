@@ -350,22 +350,27 @@ data_test <- dat[-w,]
 #I ran 2 models, a regular logistic and a boosted logistic regression. Results below:
 
 #Transforming to Data Frame
+```{r}
 dat_1 <- as.data.frame(dat)
+```
 
 #Transforming variable 'Absent_time' into binomial:
+```{r}
 dat_1$Absent_time <- ifelse(dat_1$Absent_time <= 8, 'good', 'bad')
 
 #Examining variable 'Absent_time'
 table(dat_1$Absent_time)
+```
 
 #eliminating columns 1 through 5 since they do not provide any valuable information for prediction, 
 #these are just variables that describe the data:
-
+```{r}
 dat_1 <- dat_1[,-c(1:5)]
 dat_1$Absent_time <- as.factor(dat_1$Absent_time)
 dat_1[1:15] <- scale(dat_1[1:15])
 
-
+```
+```{r}
 #Setting number of repetitions
 R = 50
 
@@ -373,7 +378,9 @@ R = 50
 
 test_error_A = matrix(0,ncol=1,nrow=R)
 test_error_B = matrix(0,ncol=1,nrow=R)
+```
 
+```{r}
 #A. Running regular logistic regression
 set.seed(7359)
 for (r in 1:R){
@@ -394,7 +401,9 @@ for (r in 1:R){
   cm_tr = (confusionMatrix(data = yhat_A, reference = te_XY_A[,16]))
   test_error_A[[r]] = sum(yhat_A!= te_XY_A[,16])/length( te_XY_A[,16])
 }
+```
 
+```{r}
 #B. Boosted logistic regression.
 set.seed(7359)
 for (r in 1:R){ # replication loop
@@ -413,9 +422,10 @@ for (r in 1:R){ # replication loop
   cm_tr_B = (confusionMatrix(data = yhat_B, reference = te_XY_B[,16]))
   test_error_B[[r]] = sum(yhat_B!= te_XY_B[,16])/length( te_XY_B[,16])  
 }
+```
 
 #Metrics For regular and boosted logistic regression:
-
+```{r}
 #Sensitivity:
 Sensitivity_A <- cm_tr$table[1,1]/(cm_tr$table[1,1]+cm_tr$table[2,1])
 
@@ -429,7 +439,9 @@ colnames(Sensitivity_metric)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic"
 
 #Displaying Sensitivity
 Sensitivity_metric
+```
 
+```{r}
 #Computing F1:
 #F1 for Regular logistic regression:
 
@@ -463,13 +475,17 @@ f1_B = 2 * precision2 * recall2 / (precision2 + recall2)
 #Displaying F1 for both models:
 data.frame(f1_A, f1_B)
 
+```
+```{r}
 #Mean of errors:
 
 mean_of_errors <- data.frame(mean(test_error_A), mean(test_error_B))
 colnames(mean_of_errors)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic")
 mean_of_errors
+```
 
-#Creating data for the ggplot:
+```{r}
+#Binding data for the ggplot:
 box_matrix <- cbind(test_error_A, test_error_B)
 colnames(box_matrix) <- c("test_error_A","test_error_B")
 box_matrix <- melt(box_matrix)
@@ -477,3 +493,4 @@ box_matrix <- melt(box_matrix)
 #Displaying Box Plot for errors:
 ggplot(data = data.frame(box_matrix), aes(x=Var2, y=value)) +
   geom_boxplot() + theme_bw() 
+```
