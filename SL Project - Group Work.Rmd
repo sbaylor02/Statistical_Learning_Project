@@ -346,3 +346,134 @@ data_test <- dat[-w,]
 
 ```
 
+#Logistic regression - Pavel
+#I ran 2 models, a regular logistic and a boosted logistic regression. Results below:
+
+#Transforming to Data Frame
+dat_1 <- as.data.frame(dat)
+
+#Transforming variable 'Absent_time' into binomial:
+dat_1$Absent_time <- ifelse(dat_1$Absent_time <= 8, 'good', 'bad')
+
+#Examining variable 'Absent_time'
+table(dat_1$Absent_time)
+
+#eliminating columns 1 through 5 since they do not provide any valuable information for prediction, 
+#these are just variables that describe the data:
+
+dat_1 <- dat_1[,-c(1:5)]
+dat_1$Absent_time <- as.factor(dat_1$Absent_time)
+dat_1[1:15] <- scale(dat_1[1:15])
+
+
+#Setting number of repetitions
+R = 50
+
+# Creating  matrix to store the errors
+
+test_error_A = matrix(0,ncol=1,nrow=R)
+test_error_B = matrix(0,ncol=1,nrow=R)
+
+#A. Running regular logistic regression
+set.seed(7359)
+for (r in 1:R){
+  
+  ind = holdout(dat_1$Absent_time,ratio=3/5, mode='stratify') 
+  
+  tr_xy_A = dat_1[ind$tr,] # train set
+  te_XY_A = dat_1[ind$ts,] # test set
+  
+ # running the actual model
+  model_A = train(Absent_time ~ .,
+                  data = tr_xy_A,
+                  method = "glm", 
+                  family = 'binomial') 
+  
+  yhat_A = predict(model_A, newdata = te_XY_A[,-16])
+  
+  cm_tr = (confusionMatrix(data = yhat_A, reference = te_XY_A[,16]))
+  test_error_A[[r]] = sum(yhat_A!= te_XY_A[,16])/length( te_XY_A[,16])
+}
+
+#B. Boosted logistic regression.
+set.seed(7359)
+for (r in 1:R){ # replication loop
+  
+  ind = holdout(dat_1$Absent_time,ratio=3/5, mode='stratify') # stratified train/test split
+  
+  tr_xy_B = dat_1[ind$tr,] # train set
+  te_XY_B = dat_1[ind$ts,] # test set
+  
+  # running the actual model
+  model_B = train(Absent_time ~ .,
+                  data = tr_xy_B,
+                  method = "LogitBoost")
+  
+  yhat_B = predict(model_B, newdata = te_XY_B[,-16])
+  cm_tr_B = (confusionMatrix(data = yhat_B, reference = te_XY_B[,16]))
+  test_error_B[[r]] = sum(yhat_B!= te_XY_B[,16])/length( te_XY_B[,16])  
+}
+
+#Metrics For regular and boosted logistic regression:
+
+#Sensitivity:
+Sensitivity_A <- cm_tr$table[1,1]/(cm_tr$table[1,1]+cm_tr$table[2,1])
+
+Sensitivity_B <- cm_tr_B$table[1,1]/(cm_tr_B$table[1,1]+cm_tr_B$table[2,1])
+
+Sensitivity_metric <- as.data.frame(cbind(Sensitivity_A, Sensitivity_B)) %>% 
+  `rownames<-`('Sensitivity')
+
+#Renaming the columns:
+colnames(Sensitivity_metric)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic")
+
+#Displaying Sensitivity
+Sensitivity_metric
+
+#Computing F1:
+#F1 for Regular logistic regression:
+
+cm_tr1 <- as.matrix(cm_tr)
+nc <- nrow(cm_tr1) # number of classes
+diag <- diag(cm_tr1) # number of correctly classified instances per class 
+rowsums <- apply(cm_tr1, 1, sum) # number of instances per class
+colsums <- apply(cm_tr1, 2, sum) # number of predictions per class
+
+precision <- diag / colsums 
+recall <- diag / rowsums 
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_A <- 2 * precision * recall / (precision + recall) 
+
+#F1 for Boosted Logistic Regression:
+
+cm_tr2 <- as.matrix(cm_tr_B)
+
+nc2 = nrow(cm_tr2) # number of classes
+diag2 = diag(cm_tr2) # number of correctly classified instances per class 
+rowsums2 = apply(cm_tr2, 1, sum) # number of instances per class
+colsums2 = apply(cm_tr2, 2, sum) # number of predictions per class
+
+precision2 = diag2 / colsums2 
+recall2 = diag2 / rowsums2 
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_B = 2 * precision2 * recall2 / (precision2 + recall2) 
+
+#Displaying F1 for both models:
+data.frame(f1_A, f1_B)
+
+#Mean of errors:
+
+mean_of_errors <- data.frame(mean(test_error_A), mean(test_error_B))
+colnames(mean_of_errors)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic")
+mean_of_errors
+
+#Creating data for the ggplot:
+box_matrix <- cbind(test_error_A, test_error_B)
+colnames(box_matrix) <- c("test_error_A","test_error_B")
+box_matrix <- melt(box_matrix)
+
+#Displaying Box Plot for errors:
+ggplot(data = data.frame(box_matrix), aes(x=Var2, y=value)) +
+  geom_boxplot() + theme_bw() 
