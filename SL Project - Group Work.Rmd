@@ -494,3 +494,84 @@ box_matrix <- melt(box_matrix)
 ggplot(data = data.frame(box_matrix), aes(x=Var2, y=value)) +
   geom_boxplot() + theme_bw() 
 ```
+
+#Decision Tree - Sarah
+
+```{r}
+#read in the necessary packages
+library(rpart)
+library(partykit)
+```
+
+```{r}
+data_train1 <- data_train
+data_train1$Absent_time <- ifelse(data_train1$Absent_time <= 8, "good", "bad")
+data_train1$Absent_time <- as.factor(data_train1$Absent_time)
+data_train1 <- data_train1 %>% select(-ID)
+data_test1 <- data_test
+data_test1$Absent_time <- ifelse(data_test1$Absent_time <= 8, 1, 0)
+data_test1$Absent_time <- as.factor(data_test1$Absent_time)
+data_test1 <- data_test1 %>% select(-ID)
+```
+
+```{r}
+#write a formula predicting Absent_time from all other variables
+form <- as.formula(Absent_time ~ .)
+#run a decision tree
+tree1 <- rpart(formula = form, data = data_train1)
+#view the decision tree
+tree1
+
+#view a plot of the decision tree
+plot(as.party(tree1))
+```
+
+```{r}
+tree_pred <- predict(object = tree1, newdata = data_test, type = "vector")
+
+tree_pred
+
+table(tree_pred, data_test$Absent_time)
+```
+
+```{r}
+#Set seed to ensure replication
+set.seed(22)
+tunegrid <-  expand.grid(.cp = seq(.01:.1, by = .01)) #tune the complexity parameter
+
+R <-  50 #set the number of replications
+
+#create the error matrix to store values
+err_mat_trees <-  matrix(0, ncol = 1, nrow = R)
+
+
+for (r in 1:R){
+  #training test split
+  p <- .6   #proportion of the data for training
+  train_id <- sample(1:nrow(dat), round(nrow(dat) * p), replace = FALSE)
+  tree_train <- dat[train_id, ]
+  tree_test <- dat[-train_id, ]
+  
+  #tree
+  tree_mod = rpart(Absent_time ~ ., data = tree_train)
+  
+  #prediction
+  yhat_tree = predict(tree_mod, tree_test, type = 'vector')
+  
+  #store the errors
+  err_mat_trees[r, 1] = mean(yhat_tree != tree_test$Class)
+  
+  #Just a nice statement to tell you when each loop is done
+  # cat("Finished Rep", r, "\n")
+}
+
+#view the error matrix for trees
+# err_mat_trees
+
+colnames(err_mat_trees) <- 'Trees'
+err_mat_trees_melt <-  melt(as.data.frame(err_mat_trees))
+colnames(err_mat_trees_melt) <-  c('Method', 'Error')
+
+ggplot(err_mat_trees_melt, mapping = aes(x = Method, y = Error)) +
+  geom_boxplot()
+```
