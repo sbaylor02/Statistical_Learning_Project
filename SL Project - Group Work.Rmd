@@ -1,5 +1,6 @@
 ####################
 STOP; RUN ALL CODE FROM THROUGH After the EDA Response Variable SECTION PRIOR TO CODING FURTHER!!!!!!!!!!!!!!!!!!!!
+#####################
 
 
 ---
@@ -314,7 +315,7 @@ p <- .6 # proportion of data for training
 w <- sample(1:nrow(dat), nrow(dat)*p, replace=F)
 data_train <-dat[w,] 
 data_test <- dat[-w,]
-
+  `Qw3ews
   ########### knn
 
 #Running the classifier
@@ -527,21 +528,16 @@ library(partykit)
 ```
 
 ```{r}
-data_train1 <- data_train
-data_train1$Absent_time <- ifelse(data_train1$Absent_time <= 8, "good", "bad")
-data_train1$Absent_time <- as.factor(data_train1$Absent_time)
-data_train1 <- data_train1 %>% select(-ID)
-data_test1 <- data_test
-data_test1$Absent_time <- ifelse(data_test1$Absent_time <= 8, 1, 0)
-data_test1$Absent_time <- as.factor(data_test1$Absent_time)
-data_test1 <- data_test1 %>% select(-ID)
+data_train$Absent_time <- as.factor(data_train$Absent_time)
+data_test$Absent_time <- as.factor(data_test$Absent_time)
 ```
+
 
 ```{r}
 #write a formula predicting Absent_time from all other variables
 form <- as.formula(Absent_time ~ .)
 #run a decision tree
-tree1 <- rpart(formula = form, data = data_train1)
+tree1 <- rpart(formula = form, data = data_train)
 #view the decision tree
 tree1
 
@@ -550,16 +546,16 @@ plot(as.party(tree1))
 ```
 
 ```{r}
-tree_pred <- predict(object = tree1, newdata = data_test, type = "vector")
+data_test$tree_pred <- predict(object = tree1, newdata = data_test, type = "class")
 
-tree_pred
+data_test$tree_pred
 
-table(tree_pred, data_test$Absent_time)
+table(data_test$tree_pred, data_test$Absent_time)
 ```
 
 ```{r}
 #Set seed to ensure replication
-set.seed(22)
+set.seed(1876)
 tunegrid <-  expand.grid(.cp = seq(.01:.1, by = .01)) #tune the complexity parameter
 
 R <-  50 #set the number of replications
@@ -569,23 +565,28 @@ err_mat_trees <-  matrix(0, ncol = 1, nrow = R)
 
 
 for (r in 1:R){
-  #training test split
-  p <- .6   #proportion of the data for training
-  train_id <- sample(1:nrow(dat), round(nrow(dat) * p), replace = FALSE)
-  tree_train <- dat[train_id, ]
-  tree_test <- dat[-train_id, ]
+  
+  # subsetting data to training and testing data
+p <- .6 # proportion of data for training
+w <- sample(1:nrow(dat), nrow(dat)*p, replace=F)
+data_train <-dat[w,] 
+data_test <- dat[-w,]
+
+data_train$Absent_time <- as.factor(data_train$Absent_time)
+data_test$Absent_time <- as.factor(data_test$Absent_time)
   
   #tree
-  tree_mod = rpart(Absent_time ~ ., data = tree_train)
+  tree_mod = rpart(Absent_time ~ ., data = data_train)
   
   #prediction
-  yhat_tree = predict(tree_mod, tree_test, type = 'vector')
+  yhat_tree = predict(tree_mod, data_test, type = 'class')
   
   #store the errors
-  err_mat_trees[r, 1] = mean(yhat_tree != tree_test$Class)
+  err_mat_trees[r, 1] = mean(yhat_tree != data_test$Absent_time)
   
   #Just a nice statement to tell you when each loop is done
   # cat("Finished Rep", r, "\n")
+  cat("Finished Rep",r, "\n")
 }
 
 #view the error matrix for trees
@@ -598,7 +599,7 @@ colnames(err_mat_trees_melt) <-  c('Method', 'Error')
 ggplot(err_mat_trees_melt, mapping = aes(x = Method, y = Error)) +
   geom_boxplot()
 ```
-=======
+======
 
 
 #divide data into test and training 
