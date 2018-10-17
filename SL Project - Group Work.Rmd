@@ -599,7 +599,7 @@ ggplot(err_mat_trees_melt, mapping = aes(x = Method, y = Error)) +
   geom_boxplot()
 ```
 =======
-
+```
 
 #divide data into test and training 
 #Transforming to Data Frame
@@ -620,7 +620,7 @@ dat_1[1:15] <- scale(dat_1[1:15])
 
 set.seed(1874)
 n <- nrow(dat_1)
-#create an interger sample of the number of rows in the data set.
+#create an integer sample of the number of rows in the data set.
 #We want 20% in the test data set so
 # .2 time the numer of rows (n) gives the sample size.
 # test_idx will have 20% of the row numbers in it
@@ -697,4 +697,6 @@ test_error_RF2 <- data.frame(test_error_RF)
 test_error_RF2
 #Displaying Box Plot for errors:
 ggplot(test_error_RF2, aes(y=OOB)) + geom_boxplot() + labs(x= 'Random Forest', y= 'Out of Bag Error', title= 'Out of Bag Error for Random Forest')
+
+```
 >>>>>>> add75b1ee1544e6545b864f94f4d1210f7c60889
