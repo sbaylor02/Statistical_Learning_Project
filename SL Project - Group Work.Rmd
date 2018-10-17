@@ -1,3 +1,8 @@
+####################
+STOP; RUN ALL CODE FROM THROUGH After the EDA Response Variable SECTION PRIOR TO CODING FURTHER!!!!!!!!!!!!!!!!!!!!
+#####################
+
+
 ---
 title: "Statistical Learning Project"
 output: html_notebook
@@ -17,6 +22,7 @@ library(rpart)
 library(partykit) 
 library(randomForest)
 library(class)
+library (rminer)
 ```
 
 ```{r}
@@ -283,17 +289,8 @@ dat.num %>%
 
 ## Initial Method Testing
 
-```{r}
-# chose an odd number near the square root of size of the training set.
-
-sqrt(444)
-
-```
-
 
 ```{r}
-
-####Note KNN code doesn't work yet, so comment out if need be but please insert code into this loop
 
 R <- 50 # replications
 
@@ -306,13 +303,13 @@ fmeasure_matrix <- matrix(0, ncol=5, nrow=R)
 
 gmean_matrix <- matrix(0, ncol=5, nrow=R)
 
+KNNcm <- matrix(0, ncol=4, nrow=R)
 
 set.seed(1876)
  
 
 for (r in 1:R){
   
-  # training test split
 # subsetting data to training and testing data
 p <- .6 # proportion of data for training
 w <- sample(1:nrow(dat), nrow(dat)*p, replace=F)
@@ -325,25 +322,51 @@ data_test <- dat[-w,]
 
   knn <- knn(data_train[-21],
                        test = data_test[-21],
-                       cl=data_train$Absent_time, k=21)
-  
-
-  # prediction    
-#  yhat_knn <-  predict(#figure out what goes in here, data_test[,-21])
+                       cl=data_train$Absent_time, k=2)
+ knntable <- table(data_test$Absent_time, knn)
+ 
+#generate confusion matrix
+ cm_KNN <-  confusionMatrix(data = knntable, reference = data_test[,-21], positive = "1")
+ 
+ KNNcm [[r,1]] <-  cm_KNN$table[1,1]
+ KNNcm [[r,2]] <-  cm_KNN$table[1,2]
+ KNNcm [[r,3]] <-  cm_KNN$table[2,1]
+ KNNcm [[r,4]] <-  cm_KNN$table[2,2]
+ 
+ err_matrix [[r,1]] <-  (cm_KNN$table[1,2]+cm_KNN$table[2,1])/nrow( data_test)
   
   # store the errors (change the 1 to whichever model you have)   
-#  err_mat_bag[r,1] <-  mean(yhat_knn!=data_test[,21])
   
-  #still need to add other errors
+ sensitivity_matrix[[r, 1]] <- cm_KNN$byClass[1]
+ 
+ cm_KNN$byClass[1]
+ 
+ fmeasure_matrix [[r, 1]] <- cm_KNN$byClass[7]
+ 
+ gmean_matrix [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
+  
+  ############# Other models go here because they need same training and testing datasets for comparison
   
   
-  ############# Other models follow
-  
-  
-  # just a nice statement to tell you when each loop is done
+#statement indicates where in loop
   cat("Finished Rep",r, "\n")
 }
 
+```
+Change the matrix names to make easier to interpret
+
+```{r}
+#plug in your model in the right place
+
+colnames(err_matrix) <- c("KNN","other", "other","other", 'other')
+
+colnames(sensitivity_matrix)<- c("KNN","other", "other","other", 'other')
+
+colnames(fmeasure_matrix) <- c("KNN","other", "other","other", 'other')
+
+colnames(gmean_matrix) <- c("KNN","other", "other","other", 'other')
+
+colnames(KNNcm) <- c("True Negative","False Positive", "False Negative","True Positive" )
 ```
 
 #Logistic regression - Pavel
