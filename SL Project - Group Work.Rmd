@@ -494,3 +494,102 @@ box_matrix <- melt(box_matrix)
 ggplot(data = data.frame(box_matrix), aes(x=Var2, y=value)) +
   geom_boxplot() + theme_bw() 
 ```
+
+
+
+#divide data into test and training 
+#Transforming to Data Frame
+
+dat_1 <- as.data.frame(dat)
+#Transforming variable 'Absent_time' into binomial:
+
+dat_1$Absent_time <- ifelse(dat_1$Absent_time <= 8, 'good', 'bad')
+
+#Examining variable 'Absent_time'
+table(dat_1$Absent_time)
+#eliminating columns 1 through 5 since they do not provide any valuable information for prediction, #these are just variables that describe the data:
+
+dat_1 <- dat_1[,-c(1:5)]
+dat_1$Absent_time <- as.factor(dat_1$Absent_time)
+dat_1[1:15] <- scale(dat_1[1:15])
+
+
+set.seed(1874)
+n <- nrow(dat_1)
+#create an interger sample of the number of rows in the data set.
+#We want 20% in the test data set so
+# .2 time the numer of rows (n) gives the sample size.
+# test_idx will have 20% of the row numbers in it
+test_idx <- sample.int(n,size= round(0.2 * n))
+#Use test_idx to subset NHANES for the test data
+test <- dat_1[test_idx,]
+#Use the inverse of test_idx, NOT test.idx to subset NHANES for the train data set
+train <- dat_1[-test_idx,]
+
+#Set the seed to ensure similar "random" selections as the other processes
+set.seed(1874)
+library(randomForest)
+nam <- names(dat_1[1:15])
+formfull <- as.formula(paste("Absent_time ~" , paste(nam,collapse =" + ") ) )
+#Use the randomForest on the training data with 6 variables tried at each split and 100
+#trees created
+diag_forest <- randomForest(formfull,
+                            data=train,
+                            mtry=6,
+                            ntree=501,
+                            na.action=na.roughfix)
+diag_forest
+#Give the importance chart to determine which variables were most often used over the
+#course of the bootstrapped forest
+importance(diag_forest)
+
+#Use the random forest to make predictions on the classification of the test data
+test_forest <- predict(diag_forest,newdata = test,type="class")
+#Confusion Matrix for the Random Forest with all of the variables
+cm_tr<- table(test_forest,test$Absent_time)
+
+
+
+#Computing F1:
+
+cm_tr1 <- as.matrix(cm_tr)
+cm_tr1
+nc = nrow(cm_tr1) # number of classes
+diag = diag(cm_tr1) # number of correctly classified instances per class 
+rowsums = apply(cm_tr1, 1, sum) # number of instances per class
+colsums = apply(cm_tr1, 2, sum) # number of predictions per class
+
+precision = diag / colsums 
+recall = diag / rowsums
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_rf = 2 * precision * recall / (precision + recall) 
+
+data.frame(precision, recall, f1_rf) 
+
+
+#Sensitivity:
+Sensitivity_RF <- cm_tr[1,1]/(cm_tr[1,1]+cm_tr[2,1])
+Sensitivity_metric <- as.data.frame(cbind(Sensitivity_RF)) %>% 
+  `rownames<-`('Sensitivity')
+
+
+#Renaming the columns:
+colnames(Sensitivity_metric)[c(1)] <- c("Random Forest")
+
+#Displaying Sensitivity
+Sensitivity_metric
+
+
+
+#calculating error
+test_error_RF<- diag_forest$err.rate
+
+mean_of_errors_RF <- data.frame(mean(test_error_RF))
+colnames(mean_of_errors_RF)[c(1)] <- c("Random Forest")
+mean_of_errors_RF
+
+test_error_RF2 <- data.frame(test_error_RF)
+test_error_RF2
+#Displaying Box Plot for errors:
+ggplot(test_error_RF2, aes(y=OOB)) + geom_boxplot() + labs(x= 'Random Forest', y= 'Out of Bag Error', title= 'Out of Bag Error for Random Forest')
