@@ -77,6 +77,12 @@ table(dat$Absent_time)
 #change variable represent missed time one day or greater
 dat <- dat %>% mutate(Absent_time= ifelse(dat$Absent_time <=8,0,1))
 ```
+```{r}
+dat$Absent_time <- as.factor(dat$Absent_time)
+#Transforming to Data Frame
+dat <- as.data.frame(dat)
+```
+
 
 ```{r}
 ggplot(data = dat,
@@ -347,6 +353,37 @@ data_test <- dat[-w,]
   
   ############# Other models go here because they need same training and testing datasets for comparison
   
+  ###glm Pavel code:
+  model_glm_1 = train(Absent_time ~ .,
+                      data = data_train,
+                      method = "glm", 
+                      family = 'binomial') 
+  
+  yhat_glm = predict(model_glm_1, newdata = data_test[,-21])
+  
+  cm_glm = confusionMatrix(data = yhat_glm, reference = data_test[,21])
+  
+  #generate confusion matrix
+  #cm_glm <-  confusionMatrix(data = glmtable, reference = data_test[,-21], positive = "1")
+  
+  glmcm <- matrix(0, ncol=4, nrow=R)
+  
+  glmcm [[r,1]] <-  cm_glm$table[1,1]
+  glmcm [[r,2]] <-  cm_glm$table[1,2]
+  glmcm [[r,3]] <-  cm_glm$table[2,1]
+  glmcm [[r,4]] <-  cm_glm$table[2,2]
+  
+  err_matrix [[r,2]] <-  (cm_glm$table[1,2]+cm_glm$table[2,1])/nrow( data_test)
+  
+  # store the errors (change the 1 to whichever model you have)   
+  
+  sensitivity_matrix[[r, 2]] <- cm_glm$byClass[1]
+  
+  cm_glm$byClass[2]
+  
+  fmeasure_matrix [[r, 2]] <- cm_glm$byClass[7]
+  
+  gmean_matrix [[r, 2]] <- sqrt(cm_glm$byClass[1]* cm_glm$byClass[2])
   
 #statement indicates where in loop
   cat("Finished Rep",r, "\n")
