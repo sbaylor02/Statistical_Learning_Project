@@ -561,7 +561,7 @@ tunegrid <-  expand.grid(.cp = seq(.01:.1, by = .01)) #tune the complexity param
 R <-  50 #set the number of replications
 
 #create the error matrix to store values
-err_mat_trees <-  matrix(0, ncol = 1, nrow = R)
+err_matrix <- matrix(0, ncol=5, nrow=R)
 
 
 for (r in 1:R){
@@ -581,8 +581,26 @@ data_test$Absent_time <- as.factor(data_test$Absent_time)
   #prediction
   yhat_tree = predict(tree_mod, data_test, type = 'class')
   
+  #generate confusion matrix
+ cm_tree <-  confusionMatrix(data = table(yhat_tree, data_test$Absent_time), reference = data_test[,-21], positive = "1")
+ 
+ Treecm[[r,1]] <-  cm_tree$table[1,1]
+ Treecm[[r,2]] <-  cm_tree$table[1,2]
+ Treecm[[r,3]] <-  cm_tree$table[2,1]
+ Treecm[[r,4]] <-  cm_tree$table[2,2]
+  
   #store the errors
-  err_mat_trees[r, 1] = mean(yhat_tree != data_test$Absent_time)
+  err_matrix[r, 3] = mean(yhat_tree != data_test$Absent_time)
+  
+    # store the errors (change the 1 to whichever model you have)   
+  
+ sensitivity_matrix[[r, 3]] <- cm_tree$byClass[1]
+ 
+ cm_tree$byClass[1]
+ 
+ fmeasure_matrix[[r, 3]] <- cm_tree$byClass[7]
+ 
+ gmean_matrix[[r, 3]] <- sqrt(cm_tree$byClass[1]* cm_tree$byClass[2])
   
   #Just a nice statement to tell you when each loop is done
   # cat("Finished Rep", r, "\n")
@@ -599,6 +617,22 @@ colnames(err_mat_trees_melt) <-  c('Method', 'Error')
 ggplot(err_mat_trees_melt, mapping = aes(x = Method, y = Error)) +
   geom_boxplot()
 ```
+Change the matrix names to make easier to interpret
+
+```{r}
+#plug in your model in the right place
+
+colnames(err_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(sensitivity_matrix)<- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(fmeasure_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(gmean_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(Treecm) <- c("True Negative","False Positive", "False Negative","True Positive" )
+```
+
 <<<<<<< HEAD
 ======
 
