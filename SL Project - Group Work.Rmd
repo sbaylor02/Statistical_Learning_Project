@@ -310,6 +310,7 @@ fmeasure_matrix <- matrix(0, ncol=5, nrow=R)
 gmean_matrix <- matrix(0, ncol=5, nrow=R)
 
 KNNcm <- matrix(0, ncol=4, nrow=R)
+glmcm <- matrix(0, ncol=4, nrow=R)
 
 set.seed(1876)
  
@@ -395,15 +396,16 @@ Change the matrix names to make easier to interpret
 ```{r}
 #plug in your model in the right place
 
-colnames(err_matrix) <- c("KNN","other", "other","other", 'other')
+colnames(err_matrix) <- c("KNN","glm", "other","other", 'other')
 
-colnames(sensitivity_matrix)<- c("KNN","other", "other","other", 'other')
+colnames(sensitivity_matrix)<- c("KNN","glm", "other","other", 'other')
 
-colnames(fmeasure_matrix) <- c("KNN","other", "other","other", 'other')
+colnames(fmeasure_matrix) <- c("KNN","glm", "other","other", 'other')
 
-colnames(gmean_matrix) <- c("KNN","other", "other","other", 'other')
+colnames(gmean_matrix) <- c("KNN","glm", "other","other", 'other')
 
 colnames(KNNcm) <- c("True Negative","False Positive", "False Negative","True Positive" )
+colnames(glmcm) <- c("True Negative","False Positive", "False Negative","True Positive" )
 ```
 
 #Logistic regression - Pavel
