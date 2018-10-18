@@ -46,8 +46,6 @@ colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_ex
 #View the data
 glimpse(dat)
 
-
-
 ```
 
 
@@ -77,6 +75,7 @@ table(dat$Absent_time)
 #change variable represent missed time one day or greater
 dat <- dat %>% mutate(Absent_time= ifelse(dat$Absent_time <=8,0,1))
 ```
+
 ```{r}
 dat$Absent_time <- as.factor(dat$Absent_time)
 #Transforming to Data Frame
@@ -293,6 +292,20 @@ dat.num %>%
   facet_wrap(~ var_name, scales = "free")
 ### BMI
 
+
+##Additional Preprocessing
+
+```{r}
+dat1 <- dat[-1]
+
+####################Someone confirm I did this right. I scaled only numeric not factors. Thats correct right?
+
+#scale
+scale <- sapply(dat1, is.numeric)
+dat1[scale] <- lapply(dat1[scale],scale)
+```
+
+
 ## Initial Method Testing
 
 
@@ -309,6 +322,7 @@ fmeasure_matrix <- matrix(0, ncol=5, nrow=R)
 
 gmean_matrix <- matrix(0, ncol=5, nrow=R)
 
+# these are optional but I like to see how the model did each run so I can check other output
 KNNcm <- matrix(0, ncol=4, nrow=R)
 glmcm <- matrix(0, ncol=4, nrow=R)
 
@@ -319,21 +333,23 @@ for (r in 1:R){
   
 # subsetting data to training and testing data
 p <- .6 # proportion of data for training
-w <- sample(1:nrow(dat), nrow(dat)*p, replace=F)
-data_train <-dat[w,] 
-data_test <- dat[-w,]
-  `Qw3ews
+w <- sample(1:nrow(dat1), nrow(dat)*p, replace=F)
+data_train <-dat1[w,] 
+data_test <- dat1[-w,]
+  
   ########### knn
 
 #Running the classifier
 
-  knn <- knn(data_train[-21],
-                       test = data_test[-21],
+  knn <- knn(data_train[-20],
+                       test = data_test[-20],
                        cl=data_train$Absent_time, k=2)
- knntable <- table(data_test$Absent_time, knn)
+  
+#predict doesn't work with KNN for factors
+ knntable <- table(knn, data_test$Absent_time)
  
-#generate confusion matrix
- cm_KNN <-  confusionMatrix(data = knntable, reference = data_test[,-21], positive = "1")
+#generate confusion matrix ( the 1 tells the model we care about that output)
+ cm_KNN <-  confusionMatrix(data = knntable, reference = data_test[,-20], positive = "1")
  
  KNNcm [[r,1]] <-  cm_KNN$table[1,1]
  KNNcm [[r,2]] <-  cm_KNN$table[1,2]
@@ -346,8 +362,6 @@ data_test <- dat[-w,]
   
  sensitivity_matrix[[r, 1]] <- cm_KNN$byClass[1]
  
- cm_KNN$byClass[1]
- 
  fmeasure_matrix [[r, 1]] <- cm_KNN$byClass[7]
  
  gmean_matrix [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
@@ -355,19 +369,16 @@ data_test <- dat[-w,]
   ############# Other models go here because they need same training and testing datasets for comparison
   
   ###glm Pavel code:
-  model_glm_1 = train(Absent_time ~ .,
+  model_glm_1 = suppressWarnings(
+    train(Absent_time ~ .,
                       data = data_train,
                       method = "glm", 
-                      family = 'binomial') 
+                      family = 'binomial')
+                      )
   
-  yhat_glm = predict(model_glm_1, newdata = data_test[,-21])
+  yhat_glm = predict(model_glm_1, newdata = data_test[,-20])
   
-  cm_glm = confusionMatrix(data = yhat_glm, reference = data_test[,21])
-  
-  #generate confusion matrix
-  #cm_glm <-  confusionMatrix(data = glmtable, reference = data_test[,-21], positive = "1")
-  
-  glmcm <- matrix(0, ncol=4, nrow=R)
+  cm_glm = confusionMatrix(data = yhat_glm, reference = data_test[,20], positive = "1")
   
   glmcm [[r,1]] <-  cm_glm$table[1,1]
   glmcm [[r,2]] <-  cm_glm$table[1,2]
@@ -379,8 +390,6 @@ data_test <- dat[-w,]
   # store the errors (change the 1 to whichever model you have)   
   
   sensitivity_matrix[[r, 2]] <- cm_glm$byClass[1]
-  
-  cm_glm$byClass[2]
   
   fmeasure_matrix [[r, 2]] <- cm_glm$byClass[7]
   
@@ -404,8 +413,8 @@ colnames(fmeasure_matrix) <- c("KNN","glm", "other","other", 'other')
 
 colnames(gmean_matrix) <- c("KNN","glm", "other","other", 'other')
 
-colnames(KNNcm) <- c("True Negative","False Positive", "False Negative","True Positive" )
-colnames(glmcm) <- c("True Negative","False Positive", "False Negative","True Positive" )
+colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
+colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
 ```
 
 #Logistic regression - Pavel
@@ -427,11 +436,12 @@ table(dat_1$Absent_time)
 #eliminating columns 1 through 5 since they do not provide any valuable information for prediction, 
 #these are just variables that describe the data:
 ```{r}
-dat_1 <- dat_1[,-c(1:5)]
+dat_1 <- dat_1[,-c(1)]
 dat_1$Absent_time <- as.factor(dat_1$Absent_time)
 dat_1[1:15] <- scale(dat_1[1:15])
 
 ```
+
 ```{r}
 #Setting number of repetitions
 R = 50
@@ -621,7 +631,7 @@ data_test$Absent_time <- as.factor(data_test$Absent_time)
   yhat_tree = predict(tree_mod, data_test, type = 'class')
   
   #generate confusion matrix
- cm_tree <-  confusionMatrix(data = table(yhat_tree, data_test$Absent_time), reference = data_test[,-21], positive = "1")
+ cm_tree <-  confusionMatrix(data = table(yhat_tree, data_test$Absent_time), reference = data_test[,-20], positive = "1")
  
  Treecm[[r,1]] <-  cm_tree$table[1,1]
  Treecm[[r,2]] <-  cm_tree$table[1,2]
@@ -671,6 +681,10 @@ colnames(gmean_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
 
 colnames(Treecm) <- c("True Negative","False Positive", "False Negative","True Positive" )
 ```
+
+
+Please make sure you enter code in right format and in line with rest of code.
+
 
 <<<<<<< HEAD
 ======
