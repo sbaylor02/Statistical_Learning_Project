@@ -417,6 +417,29 @@ colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Po
 colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
 ```
 
+```{r}
+err_graph <- melt(err_matrix)
+
+ggplot(err_graph, aes(x=X2, y=value))+geom_boxplot()
+```
+```{r}
+sens_graph <- melt(sensitivity_matrix)
+
+ggplot(sens_graph, aes(x=X2, y=value))+geom_boxplot()
+```
+```{r}
+fmeas_graph <- melt(fmeasure_matrix)
+
+ggplot(fmeas_graph, aes(x=X2, y=value))+geom_boxplot()
+```
+
+```{r}
+gmean_graph <- melt(gmean_matrix)
+
+ggplot(gmean_graph, aes(x=X2, y=value))+geom_boxplot()
+```
+
+
 #Logistic regression - Pavel
 #I ran 2 models, a regular logistic and a boosted logistic regression. Results below:
 
