@@ -413,7 +413,7 @@ data_test <- dat1[-w,]
   #store the errors
   err_matrix[r, 3] = mean(yhat_tree != data_test$Absent_time)
   
-    # store the errors (change the 1 to whichever model you have)   
+    # store the errors 
   
  sensitivity_matrix[[r, 3]] <- cm_tree$byClass[1]
  
@@ -422,6 +422,32 @@ data_test <- dat1[-w,]
  fmeasure_matrix[[r, 3]] <- cm_tree$byClass[7]
  
  gmean_matrix[[r, 3]] <- sqrt(cm_tree$byClass[1]* cm_tree$byClass[2])
+ 
+ #################################################### RF
+ 
+   rf <- randomForest(Absent_time ~.,
+                              data=data_train,
+                              mtry=6,
+                              ntree=50,
+                              na.action=na.roughfix)
+ 
+  yhat_rf = predict(rf, newdata = data_test, type= 'class')
+
+  cm_rf = confusionMatrix(data = yhat_rf, reference = data_test[,20], positive = "1")
+
+
+  rfcm [[r,1]] <-  cm_rf$table[1,1]
+  rfcm [[r,2]] <-  cm_rf$table[1,2]
+  rfcm [[r,3]] <-  cm_rf$table[2,1]
+  rfcm [[r,4]] <-  cm_rf$table[2,2]
+  
+err_matrix [[r,4]] <-  (cm_glm$table[1,2]+cm_glm$table[2,1])/nrow( data_test)
+  
+sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
+ 
+ fmeasure_matrix[[r, 4]] <- cm_rf$byClass[7]
+ 
+ gmean_matrix[[r, 4]] <- sqrt(cm_rf$byClass[1]* cm_rf$byClass[2])
   
 #statement indicates where in loop
   cat("Finished Rep",r, "\n")
@@ -433,13 +459,13 @@ Change the matrix names to make easier to interpret
 ```{r}
 #plug in your model in the right place
 
-colnames(err_matrix) <- c("KNN","glm", "tree","other", 'other')
+colnames(err_matrix) <- c("KNN","glm", "tree","RF", 'other')
 
-colnames(sensitivity_matrix)<- c("KNN","glm", "tree","other", 'other')
+colnames(sensitivity_matrix)<- c("KNN","glm", "tree","RF", 'other')
 
-colnames(fmeasure_matrix) <- c("KNN","glm", "tree","other", 'other')
+colnames(fmeasure_matrix) <- c("KNN","glm", "tree","RF", 'other')
 
-colnames(gmean_matrix) <- c("KNN","glm", "tree","other", 'other')
+colnames(gmean_matrix) <- c("KNN","glm", "tree","RF", 'other')
 
 colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
 colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
