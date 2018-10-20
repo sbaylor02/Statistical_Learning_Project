@@ -34,7 +34,9 @@ dat <- read_excel("Absenteeism_at_work.xls")
 glimpse(dat)
 
 ```
+
 ##Pre-Processing Data
+
 ```{r}
 #Set factored variables as factors
 col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker", "Pet", "Son")
@@ -58,6 +60,7 @@ nums <- unlist(lapply(dat, is.numeric))
 dat.num <- dat[ , nums]
 
 ```
+
 ## EDA Response Variable
 
 ### Absent_time
@@ -82,13 +85,13 @@ dat$Absent_time <- as.factor(dat$Absent_time)
 dat <- as.data.frame(dat)
 ```
 
-
 ```{r}
 ggplot(data = dat,
        aes(x = Absent_time)) +
   geom_histogram() + 
   theme_minimal()
 ```
+
 ```{r}
 dat %>%
   gather(-Absent_time, key = "var_name", value = "value") %>%
@@ -101,8 +104,36 @@ dat %>%
 ## EDA Predictors
 
 ### ID
+
+```{r}
+#frequency table by ID
+dat %>% count(ID)
+
+#bar chart
+dat %>% ggplot(aes(x=ID))+geom_bar()
+```
+
 ### Reason
+
+```{r}
+#Reason for absence
+dat %>%
+  gather(-Reason, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Reason)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
 ### Month
+
+```{r}
+dat %>%
+  gather(-Month, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Month)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
+
 ### Day
 
 ```{r}
@@ -124,6 +155,7 @@ dat %>%
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
 ```
+
 ### Transportation Expense
 
 ```{r}
@@ -144,6 +176,7 @@ dat %>%
 ```
 
 ###Distance
+
 ```{r}
 summary(dat$Distance)
 ggplot(data = dat,
@@ -162,6 +195,7 @@ dat %>%
 ```
 
 ### Service Time
+
 ```{r}
 ggplot(data = dat,
        aes(x = Service_time)) +
@@ -195,6 +229,7 @@ dat %>%
   facet_wrap(~ var_name, scales = "free")
 
 ```
+
 ### Workload
 
 ```{r}
@@ -231,36 +266,47 @@ dat %>%
   facet_wrap(~ var_name, scales = "free")
 
 ```
+
 ### Disciplinary Failure
+
+```{r}
 dat %>%
   gather(-Disciplinary_failure, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Disciplinary_failure)) +
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
-  
+```
+
 ### Education
 
+```{r}
 dat %>%
   gather(-Education, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Education)) +
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
-  
+```
+
 ### Children
 
+```{r}
 dat %>%
   gather(-Children, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Children)) +
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
+```
+
 ### Social Drinker
 
+```{r}
 dat %>%
   gather(-Social_drinker, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Social_drinker)) +
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
-  
+```
+
 ###Social Smoker
 
 ```{r}
@@ -272,8 +318,8 @@ dat %>%
   facet_wrap(~ var_name, scales = "free")
 ```
 
-
 ### Pet
+
 ### Weight
 
 ```{r}
@@ -283,15 +329,26 @@ dat %>%
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
 ```
+
 ### Height
 
+```{r}
 dat.num %>%
   gather(-Height, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Height)) +
   geom_point() +
   facet_wrap(~ var_name, scales = "free")
+```
+
 ### BMI
 
+```{r}
+dat %>%
+  gather(-BMI, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = BMI)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free")
+```
 
 ##Additional Preprocessing
 
@@ -326,6 +383,7 @@ gmean_matrix <- matrix(0, ncol=5, nrow=R)
 KNNcm <- matrix(0, ncol=4, nrow=R)
 glmcm <- matrix(0, ncol=4, nrow=R)
 Treecm <- matrix(0, ncol=4, nrow=R)
+SVMcm <- matrix(0, ncol=4, nrow=R)
 
 set.seed(1876)
 
@@ -449,6 +507,56 @@ sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
  
  gmean_matrix[[r, 4]] <- sqrt(cm_rf$byClass[1]* cm_rf$byClass[2])
   
+  ################################################################ SVM
+  
+  #Number of C to observe   
+  n.c = 27 
+  
+  #Create a sequence to try out 27 values between 2^-7 and 2^7 
+  v.c = seq(2^(-7),2^7, length=n.c)
+  cv.for.c = numeric(n.c)
+  error.for.c = numeric(n.c)
+
+  for(j in 1:n.c) {
+    # loop through each value of C to try
+    c.svm = svm(Absent_time~., data=data_train, cross=5, C=v.c[j], 
+                type='C-classification') 
+    #predict and get error
+    pred_class <- predict(c.svm, data_test[,-20])
+    error.for.c[j] <- mean(data_test$Absent_time != pred_class)
+  }    
+  
+  # find the optimal C value based on cv
+  c.opt = v.c[min(which(cv.for.c==min(cv.for.c)))]
+  
+  #based on prediction error
+  c.opt2 = v.c[min(which(error.for.c==min(error.for.c)))]
+  c.opt2
+  
+  # what's the optimal C value? Use it below to re-run SVM
+  csvm_absent =   svm(Absent_time~., data=data_train, cross=5, C= c.opt2,
+                   type='C-classification')
+  
+  #prediction
+  y_hat_csvm = predict(csvm_absent, data_test[,-20])
+  
+#generate confusion matrix ( the 1 tells the model we care about that output)
+  cm_SVM = confusionMatrix(data = y_hat_csvm, reference = data_test[,20], positive = "1")
+  
+  SVMcm [[r,1]] <-  cm_SVM$table[1,1]
+  SVMcm [[r,2]] <-  cm_SVM$table[1,2]
+  SVMcm [[r,3]] <-  cm_SVM$table[2,1]
+  SVMcm [[r,4]] <-  cm_SVM$table[2,2]
+ 
+  # store the errors (change the 1 to whichever model you have)
+  err_matrix[r,5] = (cm_SVM$table[1,2]+cm_SVM$table[2,1])/nrow(data_test)
+  
+  sensitivity_matrix[[r, 5]] <- cm_SVM$byClass[1]
+  
+  fmeasure_matrix [[r, 5]] <- cm_SVM$byClass[7]
+  
+  gmean_matrix [[r, 5]] <- sqrt(cm_SVM$byClass[1]* cm_SVM$byClass[2])
+ 
 #statement indicates where in loop
   cat("Finished Rep",r, "\n")
 }
@@ -459,16 +567,19 @@ Change the matrix names to make easier to interpret
 ```{r}
 #plug in your model in the right place
 
-colnames(err_matrix) <- c("KNN","glm", "tree","RF", 'other')
+colnames(err_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
-colnames(sensitivity_matrix)<- c("KNN","glm", "tree","RF", 'other')
+colnames(sensitivity_matrix)<- c("KNN","glm", "tree","RF", 'SVM')
 
-colnames(fmeasure_matrix) <- c("KNN","glm", "tree","RF", 'other')
+colnames(fmeasure_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
-colnames(gmean_matrix) <- c("KNN","glm", "tree","RF", 'other')
+colnames(gmean_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
-colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
-colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
+colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive")
+
+colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive")
+
+colnames(SVMcm) <- c("True Negative","False Negative", "False Positive","True Positive")
 ```
 
 ```{r}
