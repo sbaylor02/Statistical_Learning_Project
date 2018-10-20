@@ -325,9 +325,9 @@ gmean_matrix <- matrix(0, ncol=5, nrow=R)
 # these are optional but I like to see how the model did each run so I can check other output
 KNNcm <- matrix(0, ncol=4, nrow=R)
 glmcm <- matrix(0, ncol=4, nrow=R)
+Treecm <- matrix(0, ncol=4, nrow=R)
 
 set.seed(1876)
- 
 
 for (r in 1:R){
   
@@ -337,7 +337,7 @@ w <- sample(1:nrow(dat1), nrow(dat)*p, replace=F)
 data_train <-dat1[w,] 
 data_test <- dat1[-w,]
   
-  ########### knn
+  ################################################################ knn
 
 #Running the classifier
 
@@ -366,9 +366,9 @@ data_test <- dat1[-w,]
  
  gmean_matrix [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
   
-  ############# Other models go here because they need same training and testing datasets for comparison
+  ################################################################### GLM
   
-  ###glm Pavel code:
+
   model_glm_1 = suppressWarnings(
     train(Absent_time ~ .,
                       data = data_train,
@@ -395,6 +395,34 @@ data_test <- dat1[-w,]
   
   gmean_matrix [[r, 2]] <- sqrt(cm_glm$byClass[1]* cm_glm$byClass[2])
   
+  #####################################################Decision Tree
+
+  tree_mod = rpart(Absent_time ~ ., data = data_train)
+  
+  #prediction
+  yhat_tree = predict(tree_mod, data_test, type = 'class')
+  
+  #generate confusion matrix
+ cm_tree <-  confusionMatrix(data = table(yhat_tree, data_test$Absent_time), reference = data_test[,-20], positive = "1")
+ 
+ Treecm[[r,1]] <-  cm_tree$table[1,1]
+ Treecm[[r,2]] <-  cm_tree$table[1,2]
+ Treecm[[r,3]] <-  cm_tree$table[2,1]
+ Treecm[[r,4]] <-  cm_tree$table[2,2]
+  
+  #store the errors
+  err_matrix[r, 3] = mean(yhat_tree != data_test$Absent_time)
+  
+    # store the errors (change the 1 to whichever model you have)   
+  
+ sensitivity_matrix[[r, 3]] <- cm_tree$byClass[1]
+ 
+ cm_tree$byClass[1]
+ 
+ fmeasure_matrix[[r, 3]] <- cm_tree$byClass[7]
+ 
+ gmean_matrix[[r, 3]] <- sqrt(cm_tree$byClass[1]* cm_tree$byClass[2])
+  
 #statement indicates where in loop
   cat("Finished Rep",r, "\n")
 }
@@ -405,13 +433,13 @@ Change the matrix names to make easier to interpret
 ```{r}
 #plug in your model in the right place
 
-colnames(err_matrix) <- c("KNN","glm", "other","other", 'other')
+colnames(err_matrix) <- c("KNN","glm", "tree","other", 'other')
 
-colnames(sensitivity_matrix)<- c("KNN","glm", "other","other", 'other')
+colnames(sensitivity_matrix)<- c("KNN","glm", "tree","other", 'other')
 
-colnames(fmeasure_matrix) <- c("KNN","glm", "other","other", 'other')
+colnames(fmeasure_matrix) <- c("KNN","glm", "tree","other", 'other')
 
-colnames(gmean_matrix) <- c("KNN","glm", "other","other", 'other')
+colnames(gmean_matrix) <- c("KNN","glm", "tree","other", 'other')
 
 colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
 colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive" )
@@ -628,12 +656,12 @@ table(data_test$tree_pred, data_test$Absent_time)
 ```{r}
 #Set seed to ensure replication
 set.seed(1876)
-tunegrid <-  expand.grid(.cp = seq(.01:.1, by = .01)) #tune the complexity parameter
+
 
 R <-  50 #set the number of replications
 
 #create the error matrix to store values
-err_matrix <- matrix(0, ncol=5, nrow=R)
+Treecm <- matrix(0, ncol=4, nrow=R)
 
 
 for (r in 1:R){
@@ -646,33 +674,7 @@ data_test <- dat[-w,]
 
 data_train$Absent_time <- as.factor(data_train$Absent_time)
 data_test$Absent_time <- as.factor(data_test$Absent_time)
-  
-  #tree
-  tree_mod = rpart(Absent_time ~ ., data = data_train)
-  
-  #prediction
-  yhat_tree = predict(tree_mod, data_test, type = 'class')
-  
-  #generate confusion matrix
- cm_tree <-  confusionMatrix(data = table(yhat_tree, data_test$Absent_time), reference = data_test[,-20], positive = "1")
- 
- Treecm[[r,1]] <-  cm_tree$table[1,1]
- Treecm[[r,2]] <-  cm_tree$table[1,2]
- Treecm[[r,3]] <-  cm_tree$table[2,1]
- Treecm[[r,4]] <-  cm_tree$table[2,2]
-  
-  #store the errors
-  err_matrix[r, 3] = mean(yhat_tree != data_test$Absent_time)
-  
-    # store the errors (change the 1 to whichever model you have)   
-  
- sensitivity_matrix[[r, 3]] <- cm_tree$byClass[1]
- 
- cm_tree$byClass[1]
- 
- fmeasure_matrix[[r, 3]] <- cm_tree$byClass[7]
- 
- gmean_matrix[[r, 3]] <- sqrt(cm_tree$byClass[1]* cm_tree$byClass[2])
+
   
   #Just a nice statement to tell you when each loop is done
   # cat("Finished Rep", r, "\n")
@@ -682,12 +684,7 @@ data_test$Absent_time <- as.factor(data_test$Absent_time)
 #view the error matrix for trees
 # err_mat_trees
 
-colnames(err_mat_trees) <- 'Trees'
-err_mat_trees_melt <-  melt(as.data.frame(err_mat_trees))
-colnames(err_mat_trees_melt) <-  c('Method', 'Error')
 
-ggplot(err_mat_trees_melt, mapping = aes(x = Method, y = Error)) +
-  geom_boxplot()
 ```
 Change the matrix names to make easier to interpret
 
