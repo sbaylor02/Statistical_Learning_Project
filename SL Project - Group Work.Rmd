@@ -23,6 +23,7 @@ library(partykit)
 library(randomForest)
 library(class)
 library (rminer)
+library(e1071)
 ```
 
 ```{r}
@@ -110,10 +111,18 @@ dat %>%
 dat %>% count(ID)
 
 #bar chart
-dat %>% ggplot(aes(x=ID))+geom_bar()
+dat %>% ggplot(aes(x=ID))+geom_bar()+theme_minimal()
 ```
 
 ### Reason
+
+```{r}
+#frequency table by Reason for Absence
+dat %>% count(Reason)
+
+#bar chart
+dat %>% ggplot(aes(x=Reason))+geom_bar()+theme_minimal()
+```
 
 ```{r}
 #Reason for absence
@@ -125,6 +134,14 @@ dat %>%
 ```
 
 ### Month
+
+```{r}
+#frequency table by Month of Absence
+dat %>% count(Month)
+
+#bar chart
+dat %>% ggplot(aes(x=Month))+geom_bar()+theme_minimal()
+```
 
 ```{r}
 dat %>%
@@ -343,6 +360,15 @@ dat.num %>%
 ### BMI
 
 ```{r}
+summary(dat$BMI)
+
+ggplot(data = dat,
+       aes(x = BMI)) +
+  geom_histogram(binwidth = 1) + 
+  theme_minimal()
+```
+
+```{r}
 dat %>%
   gather(-BMI, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = BMI)) +
@@ -383,6 +409,7 @@ gmean_matrix <- matrix(0, ncol=5, nrow=R)
 KNNcm <- matrix(0, ncol=4, nrow=R)
 glmcm <- matrix(0, ncol=4, nrow=R)
 Treecm <- matrix(0, ncol=4, nrow=R)
+rfcm <- matrix(0, ncol=4, nrow=R)
 SVMcm <- matrix(0, ncol=4, nrow=R)
 
 set.seed(1876)
@@ -499,9 +526,9 @@ data_test <- dat1[-w,]
   rfcm [[r,3]] <-  cm_rf$table[2,1]
   rfcm [[r,4]] <-  cm_rf$table[2,2]
   
-err_matrix [[r,4]] <-  (cm_glm$table[1,2]+cm_glm$table[2,1])/nrow( data_test)
+ err_matrix [[r,4]] <-  (cm_glm$table[1,2]+cm_glm$table[2,1])/nrow( data_test)
   
-sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
+ sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
  
  fmeasure_matrix[[r, 4]] <- cm_rf$byClass[7]
  
@@ -562,6 +589,7 @@ sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
 }
 
 ```
+
 Change the matrix names to make easier to interpret
 
 ```{r}
@@ -587,11 +615,13 @@ err_graph <- melt(err_matrix)
 
 ggplot(err_graph, aes(x=X2, y=value))+geom_boxplot()
 ```
+
 ```{r}
 sens_graph <- melt(sensitivity_matrix)
 
 ggplot(sens_graph, aes(x=X2, y=value))+geom_boxplot()
 ```
+
 ```{r}
 fmeas_graph <- melt(fmeasure_matrix)
 
