@@ -702,9 +702,10 @@ ggplot(gmean_graph,
 ```
 
 
-##Optimizing the KNN
-
+##KNN Optimization
 ```{r}
+###Optimizing the KNN
+
 #For the tunning of the KNN model, we are going to create another traning/test data sets.
 
 #scaling the data:
@@ -719,9 +720,7 @@ str(dat_v)
 AB_class <- dat_v[, 21]
 names(AB_class) <- c(1:nrow(dat_v))
 dat_v$ID <- c(1:nrow(dat_v))
-```
 
-```{r}
 dat_v <- dat_v[1:737,]
 nrow(dat_v)
 rand_permute <- sample(x = nrow(dat_v), size = nrow(dat_v))
@@ -752,23 +751,18 @@ for (j in 1:length(exp_vars)) {
   exp_var_fstat[exp_vars[j]] <- summary(lm(as.formula(paste(exp_vars[j], " ~ AB_class_train")), 
                                            data = dat_v_train))$fstatistic[1]
 }
-```
 
-```{r}
 exp_var_fstat
-```
 
-```{r}
 exp_var_fstat2 <- sapply(exp_vars, function(x) {
   summary(lm(as.formula(paste(x, " ~ AB_class_train")), data = dat_v_train))$fstatistic[1]
 })
-```
-
-```{r}
 exp_var_fstat2
 
 names(exp_var_fstat2) <- exp_vars
+```
 
+```{r}
 #plyr version of the fit
 
 wbcd_df_L <- lapply(exp_vars, function(x) {
@@ -789,12 +783,12 @@ var_sig_fstats <- laply(wbcd_df_L, function(df) {
   f <- summary(fit)$fstatistic[1]
   f
 })
+
+names(var_sig_fstats) <- names(wbcd_df_L)
+var_sig_fstats[1:3]
 ```
 
 ```{r}
-names(var_sig_fstats) <- names(wbcd_df_L)
-var_sig_fstats[1:3]
-
 #Conclusions about significance of the variables
 
 most_sig_stats <- sort(var_sig_fstats, decreasing = T)
@@ -802,9 +796,7 @@ most_sig_stats[1:5]
 
 #As per 'most_sig_stats' the 5 most significant variables for the prediction are: 
 #'Seasons', 'Reason', 'Service_time', 'Month' and 'work_load'
-```
 
-```{r}
 #Re ordering variables by significance:
 
 dat_v_train_ord <- dat_v_train[, names(most_sig_stats)]
@@ -816,9 +808,6 @@ str(dat_v_val_ord)
 ```
 
 ```{r}
-#######################
-#######################
-
 #Monte Carlo Validation:
 
 size <- length(training_id)
@@ -833,26 +822,30 @@ training_family_L <- lapply(1:500, function(j) {
 
 validation_family_L <- lapply(training_family_L, 
                               function(x) setdiff(training_id, x))
+```
 
+```{r}
 #Finding an optimal set of variables and optimal k
 
 N <- seq(from = 2, to = 19, by = 1)
 sqrt(length(training_family_L[[1]]))
 K <- seq(from = 1, to = 15, by = 1)
 times <- 500 * length(N) * length(K)
+```
 
+```{r}
 #Execution of the test with loops
 
 paramter_errors_df <- data.frame(mc_index = as.integer(rep(NA, times = times)), 
                                  var_num = as.integer(rep(NA, times = times)), 
                                  k = as.integer(rep(NA, times = times)), 
                                  error = as.numeric(rep(NA, times = times)))
+```
 
+```{r}
 #Core knn_model:
 # j = index, n = length of range of variables, k=k
-
 core_knn <- function(j, n, k) {
-  set.seed(101)
   knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
                      test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
                      cl = AB_class_train[training_family_L[[j]]], 
@@ -866,9 +859,7 @@ core_knn <- function(j, n, k) {
 param_df1 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
 param_df <- merge(param_df1, data.frame(k = K))
 
-
 knn_err_est_df <- ddply(param_df[1:times, ], .(mc_index, var_num, k), function(df) {
-  set.seed(101)
   err <- core_knn(df$mc_index[1], df$var_num[1], df$k[1])
   err
 })
@@ -894,9 +885,10 @@ ggplot(data = mean_errs_df,
 mean_errs_df[which.min(mean_errs_df$mean_error), ]
 
 mean_errs_df %>% arrange(mean_error)
+```
 
 
-
+```{r}
 #load files from previous analysis
 #load( file='errmatrix.RData')
 #load( file='sensmatrix.RData')
@@ -907,15 +899,12 @@ mean_errs_df %>% arrange(mean_error)
 #We see that although error lower, other metrics hurt. We care about identifying >8 hours  so modify
 
 #Repeat with sensitivity
-```
 
-```{r}
 core_knn_sen <- function(j, n, k) {
-  set.seed(1876)
   knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
                      test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
                      cl = AB_class_train[training_family_L[[j]]], 
-                     k = k)
+                     k = 1)
 
   tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
   
@@ -925,14 +914,13 @@ core_knn_sen <- function(j, n, k) {
   sen <- cm_KNN$byClass[1]
   sen
 }
+```
 
-
+```{r}
 param_df1_2 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
 param_df_2 <- merge(param_df1_2, data.frame(k = K))
 
-set.seed(1876)
 knn_err_est_df_2 <- ddply(param_df_2[1:times, ], .(mc_index, var_num, k), function(df) {
-  set.seed(1876)
   sen <- core_knn_sen(df$mc_index[1], df$var_num[1], df$k[1])
   sen
 })
@@ -954,36 +942,36 @@ ggplot(data = mean_sens_df,
 ```
 
 ```{r}
-#This is the model that produces the best value of sensitivity:
+#This is the model that produces the lowest mean error var_num = 10 and k = 3:
 mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
 
 mean_sens_df %>% arrange(desc(mean_sensitivity))
-
-#Best KNN:
-set.seed(1876)
-KNN_5_3 <- knn(train = dat_v_train_ord[, 1:5], 
-               dat_v_val_ord[, 1:5], AB_class_train, 
-               k = 3)
-
-tbl_bm_val <- table(KNN_5_3, AB_class_val)
-tbl_bm_val
-
-cm_KNN_opt <-  confusionMatrix(data = tbl_bm_val, reference = dat_v_val_ord[, 1:4], positive = "1")
-cm_KNN_opt
-###########################
 ```
 
+
+##Best KNN:
 ```{r}
+KNN_8_3 <- knn(train = dat_v_train_ord[, 1:6], 
+               dat_v_val_ord[, 1:6], AB_class_train, 
+               k = 1)
+
+tbl_bm_val <- table(KNN_8_3, AB_class_val)
+tbl_bm_val
+
+cm_KNN_opt <-  confusionMatrix(data = tbl_bm_val, reference = dat_v_val_ord[, 1:6], positive = "1")
+
+###########################
+
 R <- 50 # replications
 
 # create the matrix to store values 1 row per model
-err_matrix_opt <- matrix(0, ncol=1, nrow=R)
+err_matrix_opt <- matrix(0, ncol=2, nrow=R)
 
-sensitivity_matrix_opt <- matrix(0, ncol=1, nrow=R)
+sensitivity_matrix_opt <- matrix(0, ncol=2, nrow=R)
 
-fmeasure_matrix_opt <- matrix(0, ncol=1, nrow=R)
+fmeasure_matrix_opt <- matrix(0, ncol=2, nrow=R)
 
-gmean_matrix_opt <- matrix(0, ncol=1, nrow=R)
+gmean_matrix_opt <- matrix(0, ncol=2, nrow=R)
 
 # these are optional but I like to see how the model did each run so I can check other output
 KNNcm <- matrix(0, ncol=4, nrow=R)
@@ -997,7 +985,9 @@ dat_smaller <- dat_smaller[1:737,] # remove lines with non-meaningful data
 scale <- sapply(dat_smaller, is.numeric)
 dat_smaller[scale] <- lapply(dat_smaller[scale],scale)
 head(dat_smaller)
+```
 
+```{r}
 set.seed(1876)
 
 
@@ -1040,8 +1030,7 @@ for (r in 1:R){
   
   cat("Finished Rep",r, "\n")
 }
-
-colnames(sensitivity_matrix_opt)<- c("KNN")
+colnames(sensitivity_matrix_opt)<- c("KNN", "other")
 graph_sens <- melt(sensitivity_matrix_opt)
 ```
 
@@ -1055,11 +1044,9 @@ graph
 ```
 
 ```{r}
-colnames(err_matrix_opt) <- c("KNN")
+colnames(err_matrix_opt)<- c("KNN", "other")
 graph_err <- melt(err_matrix_opt)
-```
 
-```{r}
 graph <- ggplot(graph_err,
                 aes(x=Var2, y=value) ) + 
   geom_boxplot() +
@@ -1067,4 +1054,3 @@ graph <- ggplot(graph_err,
 
 graph
 ```
-
