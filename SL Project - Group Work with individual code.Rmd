@@ -15,7 +15,6 @@ Statistical Learning Project
 
 ```{r}
 #load the necessary packages
-library(plyr)
 library(tidyverse)
 library(reshape2)
 library(readxl)
@@ -26,8 +25,6 @@ library(randomForest)
 library(class)
 library (rminer)
 library(e1071)
-library(mlbench)
-library(ggplot2)
 ```
 
 ```{r}
@@ -702,369 +699,350 @@ ggplot(gmean_graph,
 ```
 
 
-##Optimizing the KNN
+#Logistic regression - Pavel
+#I ran 2 models, a regular logistic and a boosted logistic regression. Results below:
 
+#Transforming to Data Frame
 ```{r}
-#For the tunning of the KNN model, we are going to create another traning/test data sets.
+dat_1 <- as.data.frame(dat)
+```
 
-#scaling the data:
-dat_v <- dat #we are going to use dat_v for the manipulation
+#Transforming variable 'Absent_time' into binomial:
+```{r}
+dat_1$Absent_time <- ifelse(dat_1$Absent_time == 0, 'good', 'bad')
 
-dat_v[c(6:11, 14, 17:20)] <- lapply(dat_v[c(6:11, 14, 17:20)], function(x) c(scale(x)))
-str(dat_v)
+#Examining variable 'Absent_time'
+table(dat_1$Absent_time)
+```
+
+#eliminating column 1 since it does not provide any valuable information for prediction, 
+#these are just variables that describe the data:
+```{r}
+dat_1 <- dat_1[,-c(1)]
+dat_1[,c(5:10, 13)] <- scale(dat_1[,c(5:10, 13)])
 ```
 
 ```{r}
-#predicting class:
-AB_class <- dat_v[, 21]
-names(AB_class) <- c(1:nrow(dat_v))
-dat_v$ID <- c(1:nrow(dat_v))
+#Setting number of repetitions
+R = 50
+
+# Creating  matrix to store the errors
+
+test_error_A = matrix(0,ncol=1,nrow=R)
+test_error_B = matrix(0,ncol=1,nrow=R)
 ```
 
 ```{r}
-dat_v <- dat_v[1:737,]
-nrow(dat_v)
-rand_permute <- sample(x = nrow(dat_v), size = nrow(dat_v))
-
-all_id_random <- dat_v[rand_permute, "ID"]
-dat_v <- dat_v[,-1] #remove ID
-```
-
-```{r}
-#random samples for training test
-validate_id <- as.character(all_id_random[1:248])
-training_id <- as.character(all_id_random[249:737])
-
-dat_v_train <- dat_v[training_id, ]
-dat_v_val <- dat_v[validate_id, ]
-AB_class_train <- AB_class[training_id]
-AB_class_val <- AB_class[validate_id]
-table(AB_class_train)
-```
-
-```{r}
-#Study significance of the variables
-exp_vars <- names(dat_v_train)
-exp_var_fstat <- as.numeric(rep(NA, times = 20))
-names(exp_var_fstat) <- exp_vars
-
-for (j in 1:length(exp_vars)) {
-  exp_var_fstat[exp_vars[j]] <- summary(lm(as.formula(paste(exp_vars[j], " ~ AB_class_train")), 
-                                           data = dat_v_train))$fstatistic[1]
+#A. Running regular logistic regression
+set.seed(7359)
+for (r in 1:R){
+  
+  ind = holdout(dat_1$Absent_time,ratio=3/5, mode='stratify') 
+  
+  tr_xy_A = dat_1[ind$tr,] # train set
+  te_XY_A = dat_1[ind$ts,] # test set
+  
+ # running the actual model
+  model_A = train(Absent_time ~ .,
+                  data = tr_xy_A,
+                  method = "glm", 
+                  family = 'binomial') 
+  
+  yhat_A = predict(model_A, newdata = te_XY_A[,-16])
+  
+  cm_tr = (confusionMatrix(data = yhat_A, reference = te_XY_A[,16]))
+  test_error_A[[r]] = sum(yhat_A!= te_XY_A[,16])/length( te_XY_A[,16])
 }
 ```
 
 ```{r}
-exp_var_fstat
-```
-
-```{r}
-exp_var_fstat2 <- sapply(exp_vars, function(x) {
-  summary(lm(as.formula(paste(x, " ~ AB_class_train")), data = dat_v_train))$fstatistic[1]
-})
-```
-
-```{r}
-exp_var_fstat2
-
-names(exp_var_fstat2) <- exp_vars
-
-#plyr version of the fit
-
-wbcd_df_L <- lapply(exp_vars, function(x) {
-  df <- data.frame(sample = rownames(dat_v_train), 
-                   variable = x, value = dat_v_train[, x], 
-                   class = AB_class_train)
-  df
-})
-head(wbcd_df_L[[1]])
-
-names(wbcd_df_L) <- exp_vars
-```
-
-```{r}
-library(plyr)
-var_sig_fstats <- laply(wbcd_df_L, function(df) {
-  fit <- lm(value ~ class, data = df)
-  f <- summary(fit)$fstatistic[1]
-  f
-})
-```
-
-```{r}
-names(var_sig_fstats) <- names(wbcd_df_L)
-var_sig_fstats[1:3]
-
-#Conclusions about significance of the variables
-
-most_sig_stats <- sort(var_sig_fstats, decreasing = T)
-most_sig_stats[1:5]
-
-#As per 'most_sig_stats' the 5 most significant variables for the prediction are: 
-#'Seasons', 'Reason', 'Service_time', 'Month' and 'work_load'
-```
-
-```{r}
-#Re ordering variables by significance:
-
-dat_v_train_ord <- dat_v_train[, names(most_sig_stats)]
-str(dat_v_train_ord)
-
+#B. Boosted logistic regression.
+set.seed(7359)
+for (r in 1:R){ # replication loop
   
-dat_v_val_ord <- dat_v_val[, names(dat_v_train_ord)]
-str(dat_v_val_ord)
-```
-
-```{r}
-#######################
-#######################
-
-#Monte Carlo Validation:
-
-size <- length(training_id)
-(2/3) * length(training_id)
-
-training_family_L <- lapply(1:500, function(j) {
-  perm <- sample(1:size, size = size, replace = F)
-  shuffle <- training_id[perm]
-  trn <- shuffle[1:326]
-  trn
-})
-
-validation_family_L <- lapply(training_family_L, 
-                              function(x) setdiff(training_id, x))
-
-#Finding an optimal set of variables and optimal k
-
-N <- seq(from = 2, to = 19, by = 1)
-sqrt(length(training_family_L[[1]]))
-K <- seq(from = 1, to = 15, by = 1)
-times <- 500 * length(N) * length(K)
-
-#Execution of the test with loops
-
-paramter_errors_df <- data.frame(mc_index = as.integer(rep(NA, times = times)), 
-                                 var_num = as.integer(rep(NA, times = times)), 
-                                 k = as.integer(rep(NA, times = times)), 
-                                 error = as.numeric(rep(NA, times = times)))
-
-#Core knn_model:
-# j = index, n = length of range of variables, k=k
-
-core_knn <- function(j, n, k) {
-  set.seed(101)
-  knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
-                     test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
-                     cl = AB_class_train[training_family_L[[j]]], 
-                     k = k)
-  tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
-  err <- (tbl[1, 2] + tbl[2, 1])/(tbl[1, 2] + tbl[2, 1]+tbl[1, 1] + tbl[2, 2])
-  err
+  ind = holdout(dat_1$Absent_time,ratio=3/5, mode='stratify') # stratified train/test split
+  
+  tr_xy_B = dat_1[ind$tr,] # train set
+  te_XY_B = dat_1[ind$ts,] # test set
+  
+  # running the actual model
+  model_B = train(Absent_time ~ .,
+                  data = tr_xy_B,
+                  method = "LogitBoost")
+  
+  yhat_B = predict(model_B, newdata = te_XY_B[,-16])
+  cm_tr_B = (confusionMatrix(data = yhat_B, reference = te_XY_B[,16]))
+  test_error_B[[r]] = sum(yhat_B!= te_XY_B[,16])/length( te_XY_B[,16])  
 }
+```
 
+#Metrics For regular and boosted logistic regression:
+```{r}
+#Sensitivity:
+Sensitivity_A <- cm_tr$table[1,1]/(cm_tr$table[1,1]+cm_tr$table[2,1])
 
-param_df1 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
-param_df <- merge(param_df1, data.frame(k = K))
+Sensitivity_B <- cm_tr_B$table[1,1]/(cm_tr_B$table[1,1]+cm_tr_B$table[2,1])
 
+Sensitivity_metric <- as.data.frame(cbind(Sensitivity_A, Sensitivity_B)) %>% 
+  `rownames<-`('Sensitivity')
 
-knn_err_est_df <- ddply(param_df[1:times, ], .(mc_index, var_num, k), function(df) {
-  set.seed(101)
-  err <- core_knn(df$mc_index[1], df$var_num[1], df$k[1])
-  err
-})
+#Renaming the columns:
+colnames(Sensitivity_metric)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic")
 
-head(knn_err_est_df)
-names(knn_err_est_df)[4] <- "error"
-
-mean_errs_df <- ddply(knn_err_est_df, .(var_num, k), function(df) mean(df$error))
-head(mean_errs_df)
-names(mean_errs_df)[3] <- "mean_error"
+#Displaying Sensitivity
+Sensitivity_metric
 ```
 
 ```{r}
-ggplot(data = mean_errs_df, 
-       aes(x = var_num, y = k, 
-           color = mean_error)) + 
-  geom_point(size = 5) + 
-  theme_minimal()
+#Computing F1:
+#F1 for Regular logistic regression:
+
+cm_tr1 <- as.matrix(cm_tr)
+nc <- nrow(cm_tr1) # number of classes
+diag <- diag(cm_tr1) # number of correctly classified instances per class 
+rowsums <- apply(cm_tr1, 1, sum) # number of instances per class
+colsums <- apply(cm_tr1, 2, sum) # number of predictions per class
+
+precision <- diag / colsums 
+recall <- diag / rowsums 
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_A <- 2 * precision * recall / (precision + recall) 
+
+#F1 for Boosted Logistic Regression:
+
+cm_tr2 <- as.matrix(cm_tr_B)
+
+nc2 = nrow(cm_tr2) # number of classes
+diag2 = diag(cm_tr2) # number of correctly classified instances per class 
+rowsums2 = apply(cm_tr2, 1, sum) # number of instances per class
+colsums2 = apply(cm_tr2, 2, sum) # number of predictions per class
+
+precision2 = diag2 / colsums2 
+recall2 = diag2 / rowsums2 
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_B = 2 * precision2 * recall2 / (precision2 + recall2) 
+
+#Displaying F1 for both models:
+data.frame(f1_A, f1_B)
+
+```
+```{r}
+#Mean of errors:
+
+mean_of_errors <- data.frame(mean(test_error_A), mean(test_error_B))
+colnames(mean_of_errors)[c(1,2)] <- c("Regular Logistic", "Boosted Logistic")
+mean_of_errors
 ```
 
 ```{r}
-#This is the model that produces the lowest mean error var_num = 6 and k = 1:
-mean_errs_df[which.min(mean_errs_df$mean_error), ]
+#Binding data for the ggplot:
+box_matrix <- cbind(test_error_A, test_error_B)
+colnames(box_matrix) <- c("test_error_A","test_error_B")
+box_matrix <- melt(box_matrix)
 
-mean_errs_df %>% arrange(mean_error)
+#Displaying Box Plot for errors:
+ggplot(data = data.frame(box_matrix), aes(x=Var2, y=value)) +
+  geom_boxplot() + theme_bw() 
+```
 
+<<<<<<< HEAD
+#Decision Tree - Sarah
 
-
-#load files from previous analysis
-#load( file='errmatrix.RData')
-#load( file='sensmatrix.RData')
-#load( file='fmeasmatrix.RData')
-#load( file='gmeanmatrix.RData')
-
-#eventually run old to compare with new. 
-#We see that although error lower, other metrics hurt. We care about identifying >8 hours  so modify
-
-#Repeat with sensitivity
+```{r}
+#read in the necessary packages
+library(rpart)
+library(partykit)
 ```
 
 ```{r}
-core_knn_sen <- function(j, n, k) {
-  set.seed(1876)
-  knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
-                     test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
-                     cl = AB_class_train[training_family_L[[j]]], 
-                     k = k)
-
-  tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
-  
-  #generate confusion matrix ( the 1 tells the model we care about that output)
-  cm_KNN <-  confusionMatrix(data = tbl, reference =AB_class_train[validation_family_L[[j]]], positive = "1")
-  
-  sen <- cm_KNN$byClass[1]
-  sen
-}
+data_train$Absent_time <- as.factor(data_train$Absent_time)
+data_test$Absent_time <- as.factor(data_test$Absent_time)
+```
 
 
-param_df1_2 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
-param_df_2 <- merge(param_df1_2, data.frame(k = K))
+```{r}
+#write a formula predicting Absent_time from all other variables
+form <- as.formula(Absent_time ~ .)
+#run a decision tree
+tree1 <- rpart(formula = form, data = data_train)
+#view the decision tree
+tree1
 
+#view a plot of the decision tree
+plot(as.party(tree1))
+```
+
+```{r}
+data_test$tree_pred <- predict(object = tree1, newdata = data_test, type = "class")
+
+data_test$tree_pred
+
+table(data_test$tree_pred, data_test$Absent_time)
+```
+
+```{r}
+#Set seed to ensure replication
 set.seed(1876)
-knn_err_est_df_2 <- ddply(param_df_2[1:times, ], .(mc_index, var_num, k), function(df) {
-  set.seed(1876)
-  sen <- core_knn_sen(df$mc_index[1], df$var_num[1], df$k[1])
-  sen
-})
-
-head(knn_err_est_df_2)
-names(knn_err_est_df_2)[4] <- "Sensitivity"
-
-mean_sens_df <- ddply(knn_err_est_df_2, .(var_num, k), function(df) mean(df$Sensitivity))
-head(mean_sens_df)
-names(mean_sens_df)[3] <- "mean_sensitivity"
-```
-
-```{r}
-ggplot(data = mean_sens_df, 
-       aes(x = var_num, y = k, 
-           color = mean_sensitivity)) + 
-  geom_point(size = 5) + 
-  theme_minimal()
-```
-
-```{r}
-#This is the model that produces the best value of sensitivity:
-mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
-
-mean_sens_df %>% arrange(desc(mean_sensitivity))
-
-#Best KNN:
-set.seed(1876)
-KNN_5_3 <- knn(train = dat_v_train_ord[, 1:5], 
-               dat_v_val_ord[, 1:5], AB_class_train, 
-               k = 3)
-
-tbl_bm_val <- table(KNN_5_3, AB_class_val)
-tbl_bm_val
-
-cm_KNN_opt <-  confusionMatrix(data = tbl_bm_val, reference = dat_v_val_ord[, 1:4], positive = "1")
-cm_KNN_opt
-###########################
-```
-
-```{r}
-R <- 50 # replications
-
-# create the matrix to store values 1 row per model
-err_matrix_opt <- matrix(0, ncol=1, nrow=R)
-
-sensitivity_matrix_opt <- matrix(0, ncol=1, nrow=R)
-
-fmeasure_matrix_opt <- matrix(0, ncol=1, nrow=R)
-
-gmean_matrix_opt <- matrix(0, ncol=1, nrow=R)
-
-# these are optional but I like to see how the model did each run so I can check other output
-KNNcm <- matrix(0, ncol=4, nrow=R)
-
-dat_smaller <- dat[, names(dat_v_train_ord)]
-dat_smaller[,20] <- dat$Absent_time
 
 
-dat_smaller <- dat_smaller[1:737,] # remove lines with non-meaningful data
+R <-  50 #set the number of replications
 
-scale <- sapply(dat_smaller, is.numeric)
-dat_smaller[scale] <- lapply(dat_smaller[scale],scale)
-head(dat_smaller)
-
-set.seed(1876)
+#create the error matrix to store values
+Treecm <- matrix(0, ncol=4, nrow=R)
 
 
 for (r in 1:R){
   
   # subsetting data to training and testing data
-  p <- .6 # proportion of data for training
-  w <- sample(1:nrow(dat_smaller), nrow(dat_smaller)*p, replace=F)
-  data_train <-dat_smaller[w,] 
-  data_test <- dat_smaller[-w,]
+p <- .6 # proportion of data for training
+w <- sample(1:nrow(dat), nrow(dat)*p, replace=F)
+data_train <-dat[w,] 
+data_test <- dat[-w,]
+
+data_train$Absent_time <- as.factor(data_train$Absent_time)
+data_test$Absent_time <- as.factor(data_test$Absent_time)
+
   
-  ################################################################ knn
-  
-  #Running the classifier
-  
-  knn <- knn(data_train[,1:2],
-             test = data_test[,1:2],
-             cl=data_train[,20], k=5)
-  
-  #predict doesn't work with KNN for factors
-  knntable <- table(knn, data_test[,20])
-  
-  #generate confusion matrix ( the 1 tells the model we care about that output)
-  cm_KNN <-  confusionMatrix(data = knntable, reference = data_test[,1:2], positive = "1")
-  
-  KNNcm [[r,1]] <-  cm_KNN$table[1,1]
-  KNNcm [[r,2]] <-  cm_KNN$table[1,2]
-  KNNcm [[r,3]] <-  cm_KNN$table[2,1]
-  KNNcm [[r,4]] <-  cm_KNN$table[2,2]
-  
-  err_matrix_opt [[r,1]] <-  (cm_KNN$table[1,2]+cm_KNN$table[2,1])/nrow( data_test)
-  
-  # store the errors (change the 1 to whichever model you have)   
-  
-  sensitivity_matrix_opt[[r, 1]] <- cm_KNN$byClass[1]
-  
-  fmeasure_matrix_opt [[r, 1]] <- cm_KNN$byClass[7]
-  
-  gmean_matrix_opt [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
-  
+  #Just a nice statement to tell you when each loop is done
+  # cat("Finished Rep", r, "\n")
   cat("Finished Rep",r, "\n")
 }
 
-colnames(sensitivity_matrix_opt)<- c("KNN")
-graph_sens <- melt(sensitivity_matrix_opt)
+#view the error matrix for trees
+# err_mat_trees
+
+
 ```
+Change the matrix names to make easier to interpret
 
 ```{r}
-graph <- ggplot(graph_sens,
-                aes(x=Var2, y=value) ) + 
-  geom_boxplot() +
-  theme_minimal()
+#plug in your model in the right place
 
-graph
+colnames(err_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(sensitivity_matrix)<- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(fmeasure_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(gmean_matrix) <- c("KNN","other", "Decision_Tree","other", 'other')
+
+colnames(Treecm) <- c("True Negative","False Positive", "False Negative","True Positive" )
 ```
 
-```{r}
-colnames(err_matrix_opt) <- c("KNN")
-graph_err <- melt(err_matrix_opt)
+
+Please make sure you enter code in right format and in line with rest of code.
+
+
+<<<<<<< HEAD
+======
+
+=======
+=======
 ```
+>>>>>>> 117449057ef5822b61ea4a1f3a2be5d9a1938d12
+
+#divide data into test and training 
+#Transforming to Data Frame
+
+dat_1 <- as.data.frame(dat)
+#Transforming variable 'Absent_time' into binomial:
+
+dat_1$Absent_time <- ifelse(dat_1$Absent_time <= 8, 'good', 'bad')
+
+#Examining variable 'Absent_time'
+table(dat_1$Absent_time)
+#eliminating columns 1 through 5 since they do not provide any valuable information for prediction, #these are just variables that describe the data:
+
+dat_1 <- dat_1[,-c(1:5)]
+dat_1$Absent_time <- as.factor(dat_1$Absent_time)
+dat_1[1:15] <- scale(dat_1[1:15])
+
+
+set.seed(1874)
+n <- nrow(dat_1)
+#create an integer sample of the number of rows in the data set.
+#We want 20% in the test data set so
+# .2 time the numer of rows (n) gives the sample size.
+# test_idx will have 20% of the row numbers in it
+test_idx <- sample.int(n,size= round(0.2 * n))
+#Use test_idx to subset NHANES for the test data
+test <- dat_1[test_idx,]
+#Use the inverse of test_idx, NOT test.idx to subset NHANES for the train data set
+train <- dat_1[-test_idx,]
+
+#Set the seed to ensure similar "random" selections as the other processes
+set.seed(1874)
+library(randomForest)
+nam <- names(dat_1[1:15])
+formfull <- as.formula(paste("Absent_time ~" , paste(nam,collapse =" + ") ) )
+#Use the randomForest on the training data with 6 variables tried at each split and 100
+#trees created
+diag_forest <- randomForest(formfull,
+                            data=train,
+                            mtry=6,
+                            ntree=501,
+                            na.action=na.roughfix)
+diag_forest
+#Give the importance chart to determine which variables were most often used over the
+#course of the bootstrapped forest
+importance(diag_forest)
+
+#Use the random forest to make predictions on the classification of the test data
+test_forest <- predict(diag_forest,newdata = test,type="class")
+#Confusion Matrix for the Random Forest with all of the variables
+cm_tr<- table(test_forest,test$Absent_time)
+
+
+
+#Computing F1:
+
+cm_tr1 <- as.matrix(cm_tr)
+cm_tr1
+nc = nrow(cm_tr1) # number of classes
+diag = diag(cm_tr1) # number of correctly classified instances per class 
+rowsums = apply(cm_tr1, 1, sum) # number of instances per class
+colsums = apply(cm_tr1, 2, sum) # number of predictions per class
+
+precision = diag / colsums 
+recall = diag / rowsums
+
+#The F-measure gives the harmonic mean of recall and precision 
+f1_rf = 2 * precision * recall / (precision + recall) 
+
+data.frame(precision, recall, f1_rf) 
+
+
+#Sensitivity:
+Sensitivity_RF <- cm_tr[1,1]/(cm_tr[1,1]+cm_tr[2,1])
+Sensitivity_metric <- as.data.frame(cbind(Sensitivity_RF)) %>% 
+  `rownames<-`('Sensitivity')
+
+
+#Renaming the columns:
+colnames(Sensitivity_metric)[c(1)] <- c("Random Forest")
+
+#Displaying Sensitivity
+Sensitivity_metric
+
+
+
+#calculating error
+test_error_RF<- diag_forest$err.rate
+
+mean_of_errors_RF <- data.frame(mean(test_error_RF))
+colnames(mean_of_errors_RF)[c(1)] <- c("Random Forest")
+mean_of_errors_RF
+
+test_error_RF2 <- data.frame(test_error_RF)
+test_error_RF2
+#Displaying Box Plot for errors:
+ggplot(test_error_RF2, aes(y=OOB)) + geom_boxplot() + labs(x= 'Random Forest', y= 'Out of Bag Error', title= 'Out of Bag Error for Random Forest')
+
 
 ```{r}
-graph <- ggplot(graph_err,
-                aes(x=Var2, y=value) ) + 
-  geom_boxplot() +
-  theme_minimal()
-
+graph <- ggplot(as.data.frame(sensitivity_matrix_opt),aes(x=KNN) )+ geom_boxplot(stat=identity)
 graph
 ```
 
