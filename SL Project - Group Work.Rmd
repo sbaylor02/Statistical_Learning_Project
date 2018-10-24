@@ -39,7 +39,7 @@ glimpse(dat)
 
 ```{r}
 #Set factored variables as factors
-col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker", "Pet", "Son")
+col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker")
 dat[col] <- lapply(dat[col], as.factor)
 dat[col] <- lapply(dat[col], ordered)
 
@@ -415,7 +415,7 @@ for (r in 1:R){
   
 # subsetting data to training and testing data
 p <- .6 # proportion of data for training
-w <- sample(1:nrow(dat1), nrow(dat)*p, replace=F)
+w <- sample(1:nrow(dat1), nrow(dat1)*p, replace=F)
 data_train <-dat1[w,] 
 data_test <- dat1[-w,]
   
@@ -600,35 +600,54 @@ colnames(fmeasure_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
 colnames(gmean_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
+
+
 colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive")
 
 colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive")
 
 colnames(SVMcm) <- c("True Negative","False Negative", "False Positive","True Positive")
-```
 
+```
+save output
+```{r}
+save(err_matrix, file='errmatrix.RData')
+save(sensitivity_matrix, file='sensmatrix.RData')
+save(fmeasure_matrix, file='fmeasmatrix.RData')
+save(gmean_matrix, file='gmeanmatrix.RData')
+```
+ 
+ load output
+ 
+```{r}
+load( file='errmatrix.RData')
+load( file='sensmatrix.RData')
+load( file='fmeasmatrix.RData')
+load( file='gmeanmatrix.RData')
+```
+ 
 ```{r}
 err_graph <- melt(err_matrix)
 
-ggplot(err_graph, aes(x=X2, y=value))+geom_boxplot()
+ggplot(err_graph, aes(x=Var2, y=value))+geom_boxplot()
 ```
 
 ```{r}
 sens_graph <- melt(sensitivity_matrix)
 
-ggplot(sens_graph, aes(x=X2, y=value))+geom_boxplot()
+ggplot(sens_graph, aes(x=Var2, y=value))+geom_boxplot()
 ```
 
 ```{r}
 fmeas_graph <- melt(fmeasure_matrix)
 
-ggplot(fmeas_graph, aes(x=X2, y=value))+geom_boxplot()
+ggplot(fmeas_graph, aes(x=Var2, y=value))+geom_boxplot()
 ```
 
 ```{r}
 gmean_graph <- melt(gmean_matrix)
 
-ggplot(gmean_graph, aes(x=X2, y=value))+geom_boxplot()
+ggplot(gmean_graph, aes(x=Var2, y=value))+geom_boxplot()
 ```
 
 
@@ -975,5 +994,9 @@ test_error_RF2
 #Displaying Box Plot for errors:
 ggplot(test_error_RF2, aes(y=OOB)) + geom_boxplot() + labs(x= 'Random Forest', y= 'Out of Bag Error', title= 'Out of Bag Error for Random Forest')
 
+
+```{r}
+graph <- ggplot(as.data.frame(sensitivity_matrix_opt),aes(x=KNN) )+ geom_boxplot(stat=identity)
+graph
 ```
->>>>>>> add75b1ee1544e6545b864f94f4d1210f7c60889
+
