@@ -69,12 +69,13 @@ summary(dat$Absent_time)
 ```
 
 ```{r}
-table(dat$Absent_time)
+dat %>% count(Absent_time)
 ```
 
 ```{r}
 #change variable represent missed time one day or greater
-dat <- dat %>% mutate(Absent_time= ifelse(dat$Absent_time <=8,0,1))
+dat <- dat %>% 
+  mutate(Absent_time = ifelse(dat$Absent_time <= 8,0,1))
 ```
 
 ```{r}
@@ -98,7 +99,8 @@ dat %>%
   gather(-Absent_time, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Absent_time)) +
   geom_point() +
-  facet_wrap(~ var_name, scales = "free")
+  facet_wrap(~ var_name, scales = "free") +
+  theme_minimal()
 ```
 
 
@@ -108,20 +110,33 @@ dat %>%
 
 ```{r}
 #frequency table by ID
-dat %>% count(ID)
+dat %>% 
+  count(ID)
 
 #bar chart
 dat %>% 
-  ggplot(aes(x=ID)) +
+  ggplot(aes(x = ID)) +
   geom_bar() +
   theme_minimal()
 ```
+
+```{r, warning=FALSE}
+#ID
+dat %>%
+  gather(-ID, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = ID)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free") + 
+  theme_minimal()
+```
+
 
 ### Reason
 
 ```{r}
 #frequency table by Reason for Absence
-dat %>% count(Reason)
+dat %>% 
+  count(Reason)
 
 #bar chart
 dat %>% 
@@ -130,7 +145,7 @@ dat %>%
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
 #Reason for absence
 dat %>%
   gather(-Reason, key = "var_name", value = "value") %>%
@@ -144,7 +159,8 @@ dat %>%
 
 ```{r}
 #frequency table by Month of Absence
-dat %>% count(Month)
+dat %>% 
+  count(Month)
 
 #bar chart
 dat %>% 
@@ -153,7 +169,7 @@ dat %>%
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
 dat %>%
   gather(-Month, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Month)) +
@@ -165,6 +181,19 @@ dat %>%
 ### Day
 
 ```{r}
+#frequency table by Day of Absence
+dat %>% 
+  count(Day)
+
+#bar chart
+dat %>% 
+  ggplot(aes(x=Month)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
 dat %>%
   gather(-Day, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Day)) +
@@ -177,6 +206,18 @@ dat %>%
 ### Seasons
 
 ```{r}
+#frequency table by Season of Absence
+dat %>% 
+  count(Seasons)
+
+#bar chart
+dat %>% 
+  ggplot(aes(x=Seasons)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+```{r, warning=FALSE}
 #Scatterplots for variable 'Seasons'
 dat %>%
   gather(-Seasons, key = "var_name", value = "value") %>%
@@ -189,15 +230,18 @@ dat %>%
 ### Transportation Expense
 
 ```{r}
+#summary of transportation expenses
 summary(dat$Transportation_expense)
 
+#histograph
 ggplot(data = dat,
        aes(x = Transportation_expense)) +
   geom_histogram(binwidth = 50) + 
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'Transportation_expense'
 dat %>%
   gather(-Transportation_expense, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Transportation_expense)) +
@@ -210,15 +254,18 @@ dat %>%
 ###Distance
 
 ```{r}
+#summary of distance
 summary(dat$Distance)
 
+#histogram
 ggplot(data = dat,
        aes(x = Distance)) +
   geom_histogram(binwidth = 5) + 
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'Distance'
 dat %>%
   gather(-Distance, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Distance)) +
@@ -231,13 +278,18 @@ dat %>%
 ### Service Time
 
 ```{r}
+#summary for Service_time
+summary(dat$Service_time)
+
+#histogram
 ggplot(data = dat,
        aes(x = Service_time)) +
   geom_histogram() +
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'Service_time'
 dat %>%
   gather(-Service_time, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Service_time)) +
@@ -249,13 +301,18 @@ dat %>%
 ### Age
 
 ```{r}
+#summary for Age
+summary(dat$Age)
+
+#histogram
 ggplot(data = dat,
        aes(x = Age)) +
   geom_histogram() + 
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'Age'
 dat %>%
   gather(-Age, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Age)) +
@@ -267,15 +324,18 @@ dat %>%
 ### Workload
 
 ```{r}
+#summary for work load
 summary(dat$Work_load)
 
+#histogram
 ggplot(data = dat,
        aes(x = Work_load)) +
   geom_histogram(binwidth = 5000) + 
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'Work_load'
 dat %>%
   gather(-Work_load, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Work_load)) +
@@ -287,13 +347,18 @@ dat %>%
 ### Hit Target
 
 ```{r}
+#summary for hit target
+summary(dat$Hit_target)
+
+#histogram
 ggplot(data = dat,
        aes(x = Hit_target)) + 
   geom_histogram() +
   theme_minimal()
 ```
 
-```{r}
+```{r, warning = FALSE}
+#Scatterplots for variable 'Hit_target'
 dat %>%
   gather(-Hit_target, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Hit_target)) +
@@ -305,6 +370,20 @@ dat %>%
 ### Disciplinary Failure
 
 ```{r}
+#table for disciplinary failure
+dat %>%
+  count(Disciplinary_failure)
+
+#bar chart
+ggplot(data = dat,
+       aes(x = Disciplinary_failure)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
+#Scatterplots for variable 'Disciplinary_failure'
 dat %>%
   gather(-Disciplinary_failure, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Disciplinary_failure)) +
@@ -316,6 +395,19 @@ dat %>%
 ### Education
 
 ```{r}
+#table for education
+dat %>%
+  count(Education)
+
+#bar chart
+ggplot(data = dat,
+       aes(x = Education)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+```{r, warning=FALSE}
+#Scatterplots for variable 'Education'
 dat %>%
   gather(-Education, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Education)) +
@@ -327,6 +419,20 @@ dat %>%
 ### Children
 
 ```{r}
+#table for number of children
+dat %>%
+  count(Children)
+
+#bar chart
+ggplot(data = dat,
+       aes(x = Children)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
+#Scatterplots for variable 'Children'
 dat %>%
   gather(-Children, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Children)) +
@@ -338,6 +444,20 @@ dat %>%
 ### Social Drinker
 
 ```{r}
+#table for social drinking
+dat %>%
+  count(Social_drinker)
+
+#bar chart
+ggplot(data = dat,
+       aes(x = Social_drinker)) + 
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
+#Scatterplots for variable 'Social_drinker'
 dat %>%
   gather(-Social_drinker, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Social_drinker)) +
@@ -349,6 +469,19 @@ dat %>%
 ###Social Smoker
 
 ```{r}
+#table for social smokers
+dat %>%
+  count(Social_smoker)
+
+#bar chart
+ggplot(data = dat,
+       aes(x = Social_smoker)) + 
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
 #Scatterplots for variable 'Social_smoker'
 dat %>%
   gather(-Social_smoker, key = "var_name", value = "value") %>%
@@ -361,6 +494,18 @@ dat %>%
 ### Pet
 
 ```{r}
+#summary for pets
+summary(dat$Pet)
+
+#histogram
+ggplot(data = dat,
+       aes(x = Pet)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
 #Scatterplots for variable 'Pet'
 dat %>%
   gather(-Pet, key = "var_name", value = "value") %>%
@@ -373,6 +518,19 @@ dat %>%
 ### Weight
 
 ```{r}
+#summary of weight
+summary(dat$Weight)
+
+#histogram
+ggplot(data = dat,
+       aes(x = Weight)) +
+  geom_histogram(bins = 15) +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE}
+#Scatterplots for variable 'Weight'
 dat %>%
   gather(-Weight, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Weight)) +
@@ -384,6 +542,18 @@ dat %>%
 ### Height
 
 ```{r}
+#summary of height
+summary(dat$Height)
+
+#histogram
+ggplot(data = dat,
+       aes(x = Height)) +
+  geom_histogram(bins = 10) +
+  theme_minimal()
+```
+
+```{r}
+#Scatterplots for variable 'Height'
 dat.num %>%
   gather(-Height, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = Height)) +
@@ -395,15 +565,18 @@ dat.num %>%
 ### BMI
 
 ```{r}
+#summary for BMI
 summary(dat$BMI)
 
+#histogram
 ggplot(data = dat,
        aes(x = BMI)) +
   geom_histogram(binwidth = 1) + 
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
+#Scatterplots for variable 'BMI'
 dat %>%
   gather(-BMI, key = "var_name", value = "value") %>%
   ggplot(aes(x = value, y = BMI)) +
@@ -417,8 +590,6 @@ dat %>%
 ```{r}
 dat1 <- dat[-1]
 
-####################Someone confirm I did this right. I scaled only numeric not factors. Thats correct right?
-
 #scale
 scale <- sapply(dat1, is.numeric)
 dat1[scale] <- lapply(dat1[scale],scale)
@@ -428,8 +599,7 @@ dat1[scale] <- lapply(dat1[scale],scale)
 ## Initial Method Testing
 
 
-```{r}
-
+```{r, message=FALSE, warning=FALSE}
 R <- 50 # replications
 
 # create the matrix to store values 1 row per model
@@ -621,7 +791,7 @@ data_test <- dat1[-w,]
   gmean_matrix [[r, 5]] <- sqrt(cm_SVM$byClass[1]* cm_SVM$byClass[2])
  
 #statement indicates where in loop
-  cat("Finished Rep",r, "\n")
+  #cat("Finished Rep",r, "\n")
 }
 
 ```
@@ -630,7 +800,6 @@ Change the matrix names to make easier to interpret
 
 ```{r}
 #rename the columns in the model
-
 colnames(err_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
 colnames(sensitivity_matrix)<- c("KNN","glm", "tree","RF", 'SVM')
@@ -640,14 +809,14 @@ colnames(fmeasure_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 colnames(gmean_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
 
-
+#rename the columns
 colnames(KNNcm) <- c("True Negative","False Negative", "False Positive","True Positive")
 
 colnames(glmcm) <- c("True Negative","False Negative", "False Positive","True Positive")
 
 colnames(SVMcm) <- c("True Negative","False Negative", "False Positive","True Positive")
-
 ```
+
 save output
 ```{r}
 save(err_matrix, file='errmatrix.RData')
@@ -656,8 +825,7 @@ save(fmeasure_matrix, file='fmeasmatrix.RData')
 save(gmean_matrix, file='gmeanmatrix.RData')
 ```
  
- load output
- 
+load output
 ```{r}
 load( file='errmatrix.RData')
 load( file='sensmatrix.RData')
