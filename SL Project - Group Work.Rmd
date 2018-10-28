@@ -1192,6 +1192,20 @@ Still do not see significant improvement in model
 # Using SMOTE to optimize
 
 ```{r}
+set.seed(1876)
+
+dat <- read_excel("Absenteeism_at_work.xls")
+col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker")
+dat[col] <- lapply(dat[col], as.factor)
+colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_expense", "Distance", "Service_time", "Age", "Work_load", "Hit_target", "Disciplinary_failure", "Education", "Children", "Social_drinker", "Social_smoker", "Pet", "Weight", "Height", "BMI", "Absent_time")
+
+
+nums <- unlist(lapply(dat, is.numeric))  
+dat.num <- dat[ , nums]
+
+#change variable represent missed time one day or greater
+dat <- dat %>% mutate(Absent_time= ifelse(dat$Absent_time <=8,0,1))
+str(dat)
 dat$Absent_time <- as.factor(dat$Absent_time)
 #Transforming to Data Frame
 dat <- as.data.frame(dat)
@@ -1203,21 +1217,25 @@ str(dat)
 #For the tunning of the KNN model, we are going to create another traning/test data sets.
 
 #scaling the data:
-dat_v 
+dat_v <- dat #we are going to use dat_v for the manipulation
+scale <- sapply(dat_v, is.numeric)
+dat_v[scale] <- lapply(dat_v[scale],scale)
+head(dat_v)
+
 
 #predicting class:
-AB_class <- dat_v$Absent_time
+AB_class <- dat_v[, 21]
 names(AB_class) <- c(1:nrow(dat_v))
 dat_v$ID <- c(1:nrow(dat_v))
 
 dat_v <- dat_v[1:737,]
-
+nrow(dat_v)
 rand_permute <- sample(x = nrow(dat_v), size = nrow(dat_v))
 
 all_id_random <- dat_v[rand_permute, "ID"]
+dat_v <- dat_v[,-1] #remove ID
 
-
-#######Partition data and apply Smote to training
+#######
 
 splitIndex <- createDataPartition(dat_v$Absent_time, p = .50,
                                   list = FALSE,
@@ -1229,7 +1247,7 @@ testSplit <- dat_v[-splitIndex,]
 trainSplit$Absent_time <- as.factor(trainSplit$Absent_time)
 trainSplit <- SMOTE(Absent_time ~ ., trainSplit, perc.over = 100, perc.under=200)
 
-prop.table(table(trainSplit$Absent_time)) #shows equal groups
+prop.table(table(trainSplit$Absent_time))
 
 #######
 
@@ -1306,9 +1324,45 @@ paramter_errors_df <- data.frame(mc_index = as.integer(rep(NA, times = times)),
                                  k = as.integer(rep(NA, times = times)), 
                                  error = as.numeric(rep(NA, times = times)))
 
-```
+#Core knn_model:
+# j = index, n = length of range of variables, k=k
+#core_knn <- function(j, n, k) {
+ # knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
+  #                   test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
+   #                  cl = AB_class_train[training_family_L[[j]]], 
+    #                 k = k)
+#  tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
+ # err <- (tbl[1, 2] + tbl[2, 1])/(tbl[1, 2] + tbl[2, 1]+tbl[1, 1] + tbl[2, 2])
+  #err}
 
-```{r}
+
+param_df1 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
+param_df <- merge(param_df1, data.frame(k = K))
+
+#knn_err_est_df <- ddply(param_df[1:times, ], .(mc_index, var_num, k), function(df) {
+ # err <- core_knn(df$mc_index[1], df$var_num[1], df$k[1])
+  #err
+#})
+
+#head(knn_err_est_df)
+#names(knn_err_est_df)[4] <- "error"
+
+#mean_errs_df <- ddply(knn_err_est_df, .(var_num, k), function(df) mean(df$error))
+#head(mean_errs_df)
+#names(mean_errs_df)[3] <- "mean_error"
+
+#ggplot(data = mean_errs_df, aes(x = var_num, y = k, color = mean_error)) + geom_point(size = 5) + theme_bw()
+
+#mean_errs_df[which.min(mean_errs_df$mean_error), ]
+
+#mean_errs_df %>% arrange(mean_error)
+
+
+
+#eventually run old to compare with new. 
+#We see that although error lower, other metrics hurt. We care about identifying >8 hours  so modify
+
+#Repeat with sensitivity
 
 N <- seq(from = 2, to = 19, by = 1)
 sqrt(length(training_family_L[[1]]))
@@ -1338,6 +1392,7 @@ knn_err_est_df_2 <- ddply(param_df_2[1:times, ], .(mc_index, var_num, k), functi
   sen <- core_knn_sen(df$mc_index[1], df$var_num[1], df$k[1])
   sen
 })
+
 head(knn_err_est_df_2)
 names(knn_err_est_df_2)[4] <- "Sensitivity"
 
@@ -1345,31 +1400,24 @@ mean_sens_df <- ddply(knn_err_est_df_2, .(var_num, k), function(df) mean(df$Sens
 head(mean_sens_df)
 names(mean_sens_df)[3] <- "mean_sensitivity"
 
-save(mean_sens_df, file='mean_sens_df.RData')
-```
-
-
-```{r}
-
-
 ggplot(data = mean_sens_df, aes(x = var_num, y = k, color = mean_sensitivity)) + geom_point(size = 5) + 
   theme_bw()
 
-#This is the model that produces the lowest mean error var_num = 9 and k = 1:
+
 mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
 
 order <- mean_sens_df %>% arrange(desc(mean_sensitivity))
 
-```
 
-###########################
-```{r}
-#load data back in here
 
 ```
 
+```{r eval=FALSE}
+save(mean_sens_df, file='mean_sens_df.RData')
+```
 
-```{r}
+
+```{r eval=FALSE}
 R <- 100 # replications
 
 
