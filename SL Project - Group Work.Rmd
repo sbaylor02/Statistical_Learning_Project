@@ -27,7 +27,9 @@ library(class)
 library (rminer)
 library(e1071)
 library(mlbench)
-library(ggplot2)
+library(plyr)
+library(DMwR)
+
 ```
 
 ```{r}
@@ -69,7 +71,7 @@ summary(dat$Absent_time)
 ```
 
 ```{r}
-dat %>% count(Absent_time)
+ count(dat$Absent_time)
 ```
 
 ```{r}
@@ -135,11 +137,15 @@ dat %>%
 
 ```{r}
 #frequency table by Reason for Absence
-dat %>% 
-  count(Reason)
+
+  count(dat$Reason)
 
 #bar chart
-dat %>% 
+dat %>% filter(Absent_time==0) %>%
+  ggplot(aes(x=Reason)) +
+  geom_bar() +
+  theme_minimal()
+dat %>% filter(Absent_time==1) %>%
   ggplot(aes(x=Reason)) +
   geom_bar() +
   theme_minimal()
@@ -147,12 +153,10 @@ dat %>%
 
 ```{r, warning=FALSE}
 #Reason for absence
-dat %>%
-  gather(-Reason, key = "var_name", value = "value") %>%
-  ggplot(aes(x = value, y = Reason)) +
-  geom_point() +
-  facet_wrap(~ var_name, scales = "free") + 
-  theme_minimal()
+table(dat %>%
+  filter(Reason==0) %>%
+  select(Absent_time))
+  
 ```
 
 ### Month
@@ -599,7 +603,7 @@ dat1[scale] <- lapply(dat1[scale],scale)
 ## Initial Method Testing
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
 R <- 50 # replications
 
 # create the matrix to store values 1 row per model
@@ -742,32 +746,7 @@ data_test <- dat1[-w,]
   
   ################################################################ SVM
   
-  #Number of C to observe   
-  n.c = 27 
-  
-  #Create a sequence to try out 27 values between 2^-7 and 2^7 
-  v.c = seq(2^(-7),2^7, length=n.c)
-  cv.for.c = numeric(n.c)
-  error.for.c = numeric(n.c)
-
-  for(j in 1:n.c) {
-    # loop through each value of C to try
-    c.svm = svm(Absent_time~., data=data_train, cross=5, C=v.c[j], 
-                type='C-classification') 
-    #predict and get error
-    pred_class <- predict(c.svm, data_test[,-20])
-    error.for.c[j] <- mean(data_test$Absent_time != pred_class)
-  }    
-  
-  # find the optimal C value based on cv
-  c.opt = v.c[min(which(cv.for.c==min(cv.for.c)))]
-  
-  #based on prediction error
-  c.opt2 = v.c[min(which(error.for.c==min(error.for.c)))]
-  c.opt2
-  
-  # what's the optimal C value? Use it below to re-run SVM
-  csvm_absent =   svm(Absent_time~., data=data_train, cross=5, C= c.opt2,
+  csvm_absent =   svm(Absent_time~., data=data_train,
                    type='C-classification')
   
   #prediction
@@ -818,7 +797,7 @@ colnames(SVMcm) <- c("True Negative","False Negative", "False Positive","True Po
 ```
 
 save output
-```{r}
+```{r eval=FALSE}
 save(err_matrix, file='errmatrix.RData')
 save(sensitivity_matrix, file='sensmatrix.RData')
 save(fmeasure_matrix, file='fmeasmatrix.RData')
@@ -871,6 +850,7 @@ ggplot(gmean_graph,
 
 
 ##KNN Optimization
+### Attempt 1
 ```{r}
 ###Optimizing the KNN
 
@@ -1057,16 +1037,13 @@ mean_errs_df %>% arrange(mean_error)
 
 
 ```{r}
-#load files from previous analysis
-#load( file='errmatrix.RData')
-#load( file='sensmatrix.RData')
-#load( file='fmeasmatrix.RData')
-#load( file='gmeanmatrix.RData')
+
 
 #eventually run old to compare with new. 
 #We see that although error lower, other metrics hurt. We care about identifying >8 hours  so modify
-
-#Repeat with sensitivity
+```
+#Attempt 2: Repeat with sensitivity
+```{r}
 
 core_knn_sen <- function(j, n, k) {
   knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
@@ -1116,21 +1093,9 @@ mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
 mean_sens_df %>% arrange(desc(mean_sensitivity))
 ```
 
-
-##Best KNN:
+Test with different test/training splits
 ```{r}
-KNN_8_3 <- knn(train = dat_v_train_ord[, 1:6], 
-               dat_v_val_ord[, 1:6], AB_class_train, 
-               k = 1)
-
-tbl_bm_val <- table(KNN_8_3, AB_class_val)
-tbl_bm_val
-
-cm_KNN_opt <-  confusionMatrix(data = tbl_bm_val, reference = dat_v_val_ord[, 1:6], positive = "1")
-
-###########################
-
-R <- 50 # replications
+R <- 100 # replications
 
 # create the matrix to store values 1 row per model
 err_matrix_opt <- matrix(0, ncol=2, nrow=R)
@@ -1222,3 +1187,391 @@ graph <- ggplot(graph_err,
 
 graph
 ```
+Still do not see significant improvement in model
+
+# Using SMOTE to optimize
+
+```{r}
+dat$Absent_time <- as.factor(dat$Absent_time)
+#Transforming to Data Frame
+dat <- as.data.frame(dat)
+
+str(dat)
+
+###Optimizing the KNN
+
+#For the tunning of the KNN model, we are going to create another traning/test data sets.
+
+#scaling the data:
+dat_v 
+
+#predicting class:
+AB_class <- dat_v$Absent_time
+names(AB_class) <- c(1:nrow(dat_v))
+dat_v$ID <- c(1:nrow(dat_v))
+
+dat_v <- dat_v[1:737,]
+
+rand_permute <- sample(x = nrow(dat_v), size = nrow(dat_v))
+
+all_id_random <- dat_v[rand_permute, "ID"]
+
+
+#######Partition data and apply Smote to training
+
+splitIndex <- createDataPartition(dat_v$Absent_time, p = .50,
+                                  list = FALSE,
+                                  times = 1)
+
+trainSplit <- dat_v[ splitIndex,]
+testSplit <- dat_v[-splitIndex,]
+
+trainSplit$Absent_time <- as.factor(trainSplit$Absent_time)
+trainSplit <- SMOTE(Absent_time ~ ., trainSplit, perc.over = 100, perc.under=200)
+
+prop.table(table(trainSplit$Absent_time)) #shows equal groups
+
+#######
+
+#labels to make inserted code work
+validate_id <- c(1:nrow(testSplit))
+training_id <- c(1:nrow(trainSplit))
+
+#rename to work with rest of code
+dat_v_train <- trainSplit
+dat_v_val <- testSplit
+AB_class_train <- trainSplit$Absent_time
+AB_class_val <- testSplit$Absent_time
+#Confirms data comes out as expected
+table(AB_class_train)
+
+#Study significance of the variables
+
+rf <- randomForest(Absent_time ~.,
+                   data=dat_v_train,
+                   mtry=6,
+                   ntree=50,
+                   na.action=na.roughfix)
+
+impfact <- importance(rf)
+
+impfact <- as.list(impfact)
+names(impfact) <- colnames(dat_v[,-20])
+impfact2 <- unlist(impfact)
+
+
+most_sig_stats <- names(sort(desc(impfact2)))
+
+#As per 'most_sig_stats' the 5 most significant variables for the prediction are: 
+#'Seasons', 'Reason', 'Service_time', 'Month' and 'work_load'
+
+#Re ordering variables by significance:
+
+dat_v_train_ord <- dat_v_train[ c(most_sig_stats)]
+str(dat_v_train_ord)
+
+  
+dat_v_val_ord <- dat_v_val[, names(dat_v_train_ord)]
+str(dat_v_val_ord)
+
+#######################
+#######################
+
+#Monte Carlo Validation:
+
+size <- nrow(dat_v_train)
+sub <- (2/3) * nrow(dat_v_train)
+
+training_family_L <- lapply(1:500, function(j) {
+  perm <- sample(1:size, size = size, replace = F)
+  shuffle <- training_id[perm]
+  trn <- shuffle[1:sub]
+  trn
+})
+
+validation_family_L <- lapply(training_family_L, 
+                              function(x) setdiff(training_id, x))
+
+#Finding an optimal set of variables and optimal k
+
+N <- seq(from = 2, to = 19, by = 1)
+sqrt(length(training_family_L[[1]]))
+K <- seq(from = 1, to = 19, by = 2)
+times <- 500 * length(N) * length(K)
+
+#Execution of the test with loops
+
+paramter_errors_df <- data.frame(mc_index = as.integer(rep(NA, times = times)), 
+                                 var_num = as.integer(rep(NA, times = times)), 
+                                 k = as.integer(rep(NA, times = times)), 
+                                 error = as.numeric(rep(NA, times = times)))
+
+```
+
+```{r}
+
+N <- seq(from = 2, to = 19, by = 1)
+sqrt(length(training_family_L[[1]]))
+K <- seq(from = 1, to = 19, by = 2)
+times <- 500 * length(N) * length(K)
+
+core_knn_sen <- function(j, n, k) {
+  knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
+                     test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
+                     cl = AB_class_train[training_family_L[[j]]], 
+                     k = k)
+
+  tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
+  
+  #generate confusion matrix ( the 1 tells the model we care about that output)
+  #cm_KNN <-  confusionMatrix(data = tbl, reference =AB_class_train[validation_family_L[[j]]], positive = "1")
+  
+  sen <- (tbl[2, 2] )/(tbl[1, 2] + tbl[2, 2])
+  sen
+}
+
+
+param_df1_2 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
+param_df_2 <- merge(param_df1_2, data.frame(k = K))
+
+knn_err_est_df_2 <- ddply(param_df_2[1:times, ], .(mc_index, var_num, k), function(df) {
+  sen <- core_knn_sen(df$mc_index[1], df$var_num[1], df$k[1])
+  sen
+})
+head(knn_err_est_df_2)
+names(knn_err_est_df_2)[4] <- "Sensitivity"
+
+mean_sens_df <- ddply(knn_err_est_df_2, .(var_num, k), function(df) mean(df$Sensitivity))
+head(mean_sens_df)
+names(mean_sens_df)[3] <- "mean_sensitivity"
+
+save(mean_sens_df, file='mean_sens_df.RData')
+```
+
+
+```{r}
+
+
+ggplot(data = mean_sens_df, aes(x = var_num, y = k, color = mean_sensitivity)) + geom_point(size = 5) + 
+  theme_bw()
+
+#This is the model that produces the lowest mean error var_num = 9 and k = 1:
+mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
+
+order <- mean_sens_df %>% arrange(desc(mean_sensitivity))
+
+```
+
+###########################
+```{r}
+#load data back in here
+
+```
+
+
+```{r}
+R <- 100 # replications
+
+
+# create the matrix to store values 1 row per model
+err_matrix_opt <- matrix(0, ncol=5, nrow=R)
+
+sensitivity_matrix_opt <- matrix(0, ncol=5, nrow=R)
+
+fmeasure_matrix_opt <- matrix(0, ncol=5, nrow=R)
+
+gmean_matrix_opt <- matrix(0, ncol=5, nrow=R)
+
+# these are optional but I like to see how the model did each run so I can check other output
+KNNcm <- matrix(0, ncol=4, nrow=R)
+KNNcm2 <- matrix(0, ncol=4, nrow=R)
+KNNcm3 <- matrix(0, ncol=4, nrow=R)
+KNNcm4 <- matrix(0, ncol=4, nrow=R)
+KNNcm5 <- matrix(0, ncol=4, nrow=R)
+
+set.seed(1876)
+
+for (r in 1:R){
+  
+  # subsetting data to training and testing data
+  splitIndex <- createDataPartition(dat_v$Absent_time, p = .50,
+                                    list = FALSE,
+                                    times = 1)
+  
+  trainSplit <- dat_v[ splitIndex,]
+  testSplit <- dat_v[-splitIndex,]
+  
+  trainSplit$Absent_time <- as.factor(trainSplit$Absent_time)
+  trainSplit <- SMOTE(Absent_time ~ ., trainSplit, perc.over = 100, perc.under=200)
+  ################################################################ knn
+  
+  #Running the classifier
+  
+  #option 1
+  
+  knn <- knn(trainSplit[,1:order[1,1]],
+             test = testSplit[,1:order[1,1]],
+             cl=trainSplit[,20], k=order[1,2])
+  
+  #predict doesn't work with KNN for factors
+  knntable <- table(knn, testSplit[,20])
+  
+  cm_KNN <-  confusionMatrix(data = knntable, reference = testSplit[,20], positive = "1")
+  
+  KNNcm [[r,1]] <-  cm_KNN$table[1,1]
+  KNNcm [[r,2]] <-  cm_KNN$table[1,2]
+  KNNcm [[r,3]] <-  cm_KNN$table[2,1]
+  KNNcm [[r,4]] <-  cm_KNN$table[2,2]
+  
+  err_matrix_opt [[r,1]] <-  (cm_KNN$table[1,2]+cm_KNN$table[2,1])/nrow(testSplit)
+  
+  # store the errors 
+  
+  sensitivity_matrix_opt[[r, 1]] <- cm_KNN$byClass[1]
+  
+  fmeasure_matrix_opt [[r, 1]] <- cm_KNN$byClass[7]
+  
+  gmean_matrix_opt [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
+  
+  ######################
+  #option 2
+  
+  knn <- knn(trainSplit[,1:order[2,1]],
+             test = testSplit[,1:order[2,1]],
+             cl=trainSplit[,20], k=order[2,2])
+  
+  #predict doesn't work with KNN for factors
+  knntable2 <- table(knn, testSplit[,20])
+  
+  cm_KNN2 <-  confusionMatrix(data = knntable2, reference = testSplit[,20], positive = "1")
+  
+  KNNcm2 [[r,1]] <-  cm_KNN2$table[1,1]
+  KNNcm2 [[r,2]] <-  cm_KNN2$table[1,2]
+  KNNcm2 [[r,3]] <-  cm_KNN2$table[2,1]
+  KNNcm2 [[r,4]] <-  cm_KNN2$table[2,2]
+  
+  err_matrix_opt [[r,2]] <-  (cm_KNN2$table[1,2]+cm_KNN2$table[2,1])/nrow(testSplit)
+  
+  sensitivity_matrix_opt[[r, 2]] <- cm_KNN2$byClass[1]
+  
+  fmeasure_matrix_opt [[r, 2]] <- cm_KNN2$byClass[7]
+  
+  gmean_matrix_opt [[r, 2]] <- sqrt(cm_KNN2$byClass[1]* cm_KNN2$byClass[2])
+  
+  ##########
+  #option 3
+  
+  knn <- knn(trainSplit[,1:order[3,1]],
+             test = testSplit[,1:order[3,1]],
+             cl=trainSplit[,20], k=order[3,2])
+  
+  #predict doesn't work with KNN for factors
+  knntable <- table(knn, testSplit[,20])
+  
+  cm_KNN3 <-  confusionMatrix(data = knntable, reference = testSplit[,20], positive = "1")
+  
+  KNNcm3 [[r,1]] <-  cm_KNN3$table[1,1]
+  KNNcm3 [[r,2]] <-  cm_KNN3$table[1,2]
+  KNNcm3 [[r,3]] <-  cm_KNN3$table[2,1]
+  KNNcm3 [[r,4]] <-  cm_KNN3$table[2,2]
+  
+  err_matrix_opt [[r,3]] <-  (cm_KNN3$table[1,2]+cm_KNN3$table[2,1])/nrow(testSplit)
+  
+  sensitivity_matrix_opt[[r, 3]] <- cm_KNN3$byClass[1]
+  
+  fmeasure_matrix_opt [[r, 3]] <- cm_KNN3$byClass[7]
+  
+  gmean_matrix_opt [[r, 3]] <- sqrt(cm_KNN3$byClass[1]* cm_KNN3$byClass[2])
+  
+  ################
+  #option 4
+  
+  knn <- knn(trainSplit[,1:order[4,1]],
+             test = testSplit[,1:order[4,1]],
+             cl=trainSplit[,20], k=order[4,2])
+  
+  #predict doesn't work with KNN for factors
+  knntable4 <- table(knn, testSplit[,20])
+  
+  cm_KNN4 <-  confusionMatrix(data = knntable4, reference = testSplit[,20], positive = "1")
+  
+  KNNcm4 [[r,1]] <-  cm_KNN4$table[1,1]
+  KNNcm4 [[r,2]] <-  cm_KNN4$table[1,2]
+  KNNcm4 [[r,3]] <-  cm_KNN4$table[2,1]
+  KNNcm4 [[r,4]] <-  cm_KNN4$table[2,2]
+  
+  err_matrix_opt [[r,4]] <-  (cm_KNN4$table[1,2]+cm_KNN4$table[2,1])/nrow(testSplit)
+  
+  # store the errors  
+  
+  sensitivity_matrix_opt[[r, 4]] <- cm_KNN4$byClass[1]
+  
+  fmeasure_matrix_opt [[r, 4]] <- cm_KNN4$byClass[7]
+  
+  gmean_matrix_opt [[r, 4]] <- sqrt(cm_KNN4$byClass[1]* cm_KNN4$byClass[2])
+  
+  #####################
+  #option 5
+  
+  knn <- knn(trainSplit[,1:order[5,1]],
+             test = testSplit[,1:order[5,1]],
+             cl=trainSplit[,20], k=order[5,2])
+  
+  knntable5 <- table(knn, testSplit[,20])
+  
+  cm_KNN5 <-  confusionMatrix(data = knntable5, reference = testSplit[,20], positive = "1")
+  
+  KNNcm5 [[r,1]] <-  cm_KNN5$table[1,1]
+  KNNcm5 [[r,2]] <-  cm_KNN5$table[1,2]
+  KNNcm5 [[r,3]] <-  cm_KNN5$table[2,1]
+  KNNcm5 [[r,4]] <-  cm_KNN5$table[2,2]
+  
+  err_matrix_opt [[r,5]] <-  (cm_KNN5$table[1,2]+cm_KNN5$table[2,1])/nrow( testSplit)
+  
+  # store the errors  
+  
+  sensitivity_matrix_opt[[r, 5]] <- cm_KNN5$byClass[1]
+  
+  fmeasure_matrix_opt [[r, 5]] <- cm_KNN5$byClass[7]
+  
+  gmean_matrix_opt [[r, 5]] <- sqrt(cm_KNN5$byClass[1]* cm_KNN5$byClass[2])
+  
+  cat("Finished Rep",r, "\n")
+}
+colnames(sensitivity_matrix_opt)<- c("mod1","mod2","mod3","mod4","mod5")
+graph_sens <- melt(sensitivity_matrix_opt)
+
+ggplot(graph_sens,aes(x=Var2, y=value) )+ geom_boxplot()
+
+
+colnames(err_matrix_opt)<- c("mod1","mod2","mod3","mod4","mod5")
+graph_err <- melt(err_matrix_opt)
+
+ggplot(graph_err,aes(x=Var2, y=value) )+ geom_boxplot()
+
+
+colnames(fmeasure_matrix_opt)<- c("mod1","mod2","mod3","mod4","mod5")
+graph_fmeasure <- melt(fmeasure_matrix_opt)
+
+ggplot(graph_fmeasure,aes(x=Var2, y=value) )+ geom_boxplot()
+
+colnames(gmean_matrix_opt)<- c("mod1","mod2","mod3","mod4","mod5")
+graph_gmean <- melt(gmean_matrix_opt)
+
+ggplot(graph_gmean,aes(x=Var2, y=value) )+ geom_boxplot()
+```
+
+#Comparison to original model
+```{r}
+
+load( file='sensmatrix.RData')
+
+
+#I can't get this to reimport but I think this is the code to bind cols together
+comp_matrix_sens <- cbind(sensitivity_matrix_opt[,4], sensitivity_matrix[,1])
+
+graph_comparison <- melt(comp_matrix_sens)
+
+ggplot(graph_comparison,aes(x=Var2, y=value) )+ geom_boxplot()
+```
+
