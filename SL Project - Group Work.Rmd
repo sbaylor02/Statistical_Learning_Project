@@ -13,7 +13,7 @@ East
 Statistical Learning Project
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 #load the necessary packages
 library(plyr)
 library(tidyverse)
@@ -71,10 +71,11 @@ summary(dat$Absent_time)
 ```
 
 ```{r}
- count(dat$Absent_time)
+dat %>% 
+  count(Absent_time)
 ```
 
-```{r}
+```{r, warning=FALSE}
 #change variable represent missed time one day or greater
 dat <- dat %>% 
   mutate(Absent_time = ifelse(dat$Absent_time <= 8,0,1))
@@ -95,7 +96,7 @@ ggplot(data = dat,
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
 #plot all variables vs. Absent_time
 dat %>%
   gather(-Absent_time, key = "var_name", value = "value") %>%
@@ -137,15 +138,18 @@ dat %>%
 
 ```{r}
 #frequency table by Reason for Absence
-
-  count(dat$Reason)
+dat %>% 
+  count(Reason)
 
 #bar chart
-dat %>% filter(Absent_time==0) %>%
+dat %>% 
+  filter(Absent_time==0) %>%
   ggplot(aes(x=Reason)) +
   geom_bar() +
   theme_minimal()
-dat %>% filter(Absent_time==1) %>%
+
+dat %>% 
+  filter(Absent_time==1) %>%
   ggplot(aes(x=Reason)) +
   geom_bar() +
   theme_minimal()
@@ -156,8 +160,17 @@ dat %>% filter(Absent_time==1) %>%
 table(dat %>%
   filter(Reason==0) %>%
   select(Absent_time))
-  
 ```
+
+```{r, warning=FALSE}
+dat %>%
+  gather(-Reason, key = "var_name", value = "value") %>%
+  ggplot(aes(x = value, y = Reason)) +
+  geom_point() +
+  facet_wrap(~ var_name, scales = "free") + 
+  theme_minimal()
+```
+
 
 ### Month
 
@@ -288,7 +301,7 @@ summary(dat$Service_time)
 #histogram
 ggplot(data = dat,
        aes(x = Service_time)) +
-  geom_histogram() +
+  geom_histogram(bins = 20) +
   theme_minimal()
 ```
 
@@ -311,7 +324,7 @@ summary(dat$Age)
 #histogram
 ggplot(data = dat,
        aes(x = Age)) +
-  geom_histogram() + 
+  geom_histogram(bins = 20) + 
   theme_minimal()
 ```
 
@@ -357,7 +370,7 @@ summary(dat$Hit_target)
 #histogram
 ggplot(data = dat,
        aes(x = Hit_target)) + 
-  geom_histogram() +
+  geom_histogram(bins = 20) +
   theme_minimal()
 ```
 
@@ -777,7 +790,7 @@ data_test <- dat1[-w,]
 
 Change the matrix names to make easier to interpret
 
-```{r}
+```{r, eval=FALSE}
 #rename the columns in the model
 colnames(err_matrix) <- c("KNN","glm", "tree","RF", 'SVM')
 
@@ -797,7 +810,7 @@ colnames(SVMcm) <- c("True Negative","False Negative", "False Positive","True Po
 ```
 
 save output
-```{r eval=FALSE}
+```{r, eval=FALSE}
 save(err_matrix, file='errmatrix.RData')
 save(sensitivity_matrix, file='sensmatrix.RData')
 save(fmeasure_matrix, file='fmeasmatrix.RData')
@@ -830,7 +843,7 @@ ggplot(sens_graph,
   theme_minimal()
 ```
 
-```{r}
+```{r, warning=FALSE}
 fmeas_graph <- melt(fmeasure_matrix)
 
 ggplot(fmeas_graph, 
@@ -850,7 +863,29 @@ ggplot(gmean_graph,
 
 
 ##KNN Optimization
-### Attempt 1
+```{r}
+set.seed(1876)
+
+dat <- read_excel("Absenteeism_at_work.xls")
+col <- c("ID", "Reason for absence", "Month of absence", "Day of the week", "Seasons", "Disciplinary failure", "Education", "Social drinker",   "Social smoker")
+dat[col] <- lapply(dat[col], as.factor)
+colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_expense", "Distance", "Service_time", "Age", "Work_load", "Hit_target", "Disciplinary_failure", "Education", "Children", "Social_drinker", "Social_smoker", "Pet", "Weight", "Height", "BMI", "Absent_time")
+
+nums <- unlist(lapply(dat, is.numeric))  
+dat.num <- dat[ , nums]
+```
+
+```{r}
+#change variable represent missed time one day or greater
+dat <- dat %>% mutate(Absent_time= ifelse(dat$Absent_time <=8,0,1))
+str(dat)
+dat$Absent_time <- as.factor(dat$Absent_time)
+#Transforming to Data Frame
+dat <- as.data.frame(dat)
+
+str(dat)
+```
+
 ```{r}
 ###Optimizing the KNN
 
@@ -858,9 +893,9 @@ ggplot(gmean_graph,
 
 #scaling the data:
 dat_v <- dat #we are going to use dat_v for the manipulation
-
-dat_v[c(6:11, 14, 17:20)] <- lapply(dat_v[c(6:11, 14, 17:20)], function(x) c(scale(x)))
-str(dat_v)
+scale <- sapply(dat_v, is.numeric)
+dat_v[scale] <- lapply(dat_v[scale],scale)
+head(dat_v)
 ```
 
 ```{r}
@@ -891,63 +926,33 @@ table(AB_class_train)
 
 ```{r}
 #Study significance of the variables
-exp_vars <- names(dat_v_train)
-exp_var_fstat <- as.numeric(rep(NA, times = 20))
-names(exp_var_fstat) <- exp_vars
+p <- .6 # proportion of data for training
+w <- sample(1:nrow(dat_v), nrow(dat_v)*p, replace=F)
+data_train <-dat_v[w,] 
+data_test <- dat_v[-w,]
 
-for (j in 1:length(exp_vars)) {
-  exp_var_fstat[exp_vars[j]] <- summary(lm(as.formula(paste(exp_vars[j], " ~ AB_class_train")), 
-                                           data = dat_v_train))$fstatistic[1]
-}
 
-exp_var_fstat
+rf <- randomForest(Absent_time ~.,
+                   data=data_train,
+                   mtry=6,
+                   ntree=50,
+                   na.action=na.roughfix)
 
-exp_var_fstat2 <- sapply(exp_vars, function(x) {
-  summary(lm(as.formula(paste(x, " ~ AB_class_train")), data = dat_v_train))$fstatistic[1]
-})
-exp_var_fstat2
+impfact <- importance(rf)
 
-names(exp_var_fstat2) <- exp_vars
-```
+impfact <- as.list(impfact)
+names(impfact) <- colnames(dat_v[,-20])
+impfact2 <- unlist(impfact)
 
-```{r}
-#plyr version of the fit
 
-wbcd_df_L <- lapply(exp_vars, function(x) {
-  df <- data.frame(sample = rownames(dat_v_train), 
-                   variable = x, value = dat_v_train[, x], 
-                   class = AB_class_train)
-  df
-})
-head(wbcd_df_L[[1]])
-
-names(wbcd_df_L) <- exp_vars
-```
-
-```{r}
-library(plyr)
-var_sig_fstats <- laply(wbcd_df_L, function(df) {
-  fit <- lm(value ~ class, data = df)
-  f <- summary(fit)$fstatistic[1]
-  f
-})
-
-names(var_sig_fstats) <- names(wbcd_df_L)
-var_sig_fstats[1:3]
-```
-
-```{r}
-#Conclusions about significance of the variables
-
-most_sig_stats <- sort(var_sig_fstats, decreasing = T)
-most_sig_stats[1:5]
+most_sig_stats <- names(sort(desc(impfact2)))
 
 #As per 'most_sig_stats' the 5 most significant variables for the prediction are: 
 #'Seasons', 'Reason', 'Service_time', 'Month' and 'work_load'
 
 #Re ordering variables by significance:
 
-dat_v_train_ord <- dat_v_train[, names(most_sig_stats)]
+dat_v_train_ord <- dat_v_train[ c(most_sig_stats)]
 str(dat_v_train_ord)
 
   
@@ -1002,8 +1007,9 @@ core_knn <- function(j, n, k) {
   err <- (tbl[1, 2] + tbl[2, 1])/(tbl[1, 2] + tbl[2, 1]+tbl[1, 1] + tbl[2, 2])
   err
 }
+```
 
-
+```{r}
 param_df1 <- merge(data.frame(mc_index = 1:500), data.frame(var_num = N))
 param_df <- merge(param_df1, data.frame(k = K))
 
@@ -1011,7 +1017,9 @@ knn_err_est_df <- ddply(param_df[1:times, ], .(mc_index, var_num, k), function(d
   err <- core_knn(df$mc_index[1], df$var_num[1], df$k[1])
   err
 })
+```
 
+```{r}
 head(knn_err_est_df)
 names(knn_err_est_df)[4] <- "error"
 
@@ -1021,35 +1029,38 @@ names(mean_errs_df)[3] <- "mean_error"
 ```
 
 ```{r}
-ggplot(data = mean_errs_df, 
-       aes(x = var_num, y = k, 
-           color = mean_error)) + 
-  geom_point(size = 5) + 
-  theme_minimal()
-```
+library(ggplot2)
+ggplot(data = mean_errs_df, aes(x = var_num, y = k, color = mean_error)) + geom_point(size = 5) + 
+  theme_bw()
 
-```{r}
 #This is the model that produces the lowest mean error var_num = 6 and k = 1:
 mean_errs_df[which.min(mean_errs_df$mean_error), ]
 
 mean_errs_df %>% arrange(mean_error)
 ```
 
-
 ```{r}
-
+#load files from previous analysis
+#load( file='errmatrix.RData')
+#load( file='sensmatrix.RData')
+#load( file='fmeasmatrix.RData')
+#load( file='gmeanmatrix.RData')
 
 #eventually run old to compare with new. 
 #We see that although error lower, other metrics hurt. We care about identifying >8 hours  so modify
-```
-#Attempt 2: Repeat with sensitivity
-```{r}
+
+#Repeat with sensitivity
+
+N <- seq(from = 2, to = 19, by = 1)
+sqrt(length(training_family_L[[1]]))
+K <- seq(from = 1, to = 5, by = 1)
+times <- 500 * length(N) * length(K)
 
 core_knn_sen <- function(j, n, k) {
   knn_predict <- knn(train = dat_v_train_ord[training_family_L[[j]], 1:n], 
                      test = dat_v_train_ord[validation_family_L[[j]], 1:n], 
                      cl = AB_class_train[training_family_L[[j]]], 
-                     k = 1)
+                     k = k)
 
   tbl <- table(knn_predict, AB_class_train[validation_family_L[[j]]])
   
@@ -1069,7 +1080,9 @@ knn_err_est_df_2 <- ddply(param_df_2[1:times, ], .(mc_index, var_num, k), functi
   sen <- core_knn_sen(df$mc_index[1], df$var_num[1], df$k[1])
   sen
 })
+```
 
+```{r}
 head(knn_err_est_df_2)
 names(knn_err_est_df_2)[4] <- "Sensitivity"
 
@@ -1079,39 +1092,48 @@ names(mean_sens_df)[3] <- "mean_sensitivity"
 ```
 
 ```{r}
-ggplot(data = mean_sens_df, 
-       aes(x = var_num, y = k, 
-           color = mean_sensitivity)) + 
-  geom_point(size = 5) + 
-  theme_minimal()
+library(ggplot2)
+ggplot(data = mean_sens_df, aes(x = var_num, y = k, color = mean_sensitivity)) + geom_point(size = 5) + 
+  theme_bw()
 ```
 
 ```{r}
-#This is the model that produces the lowest mean error var_num = 10 and k = 3:
+#This is the model that produces the lowest mean error var_num = 9 and k = 1:
 mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
 
 mean_sens_df %>% arrange(desc(mean_sensitivity))
 ```
 
-Test with different test/training splits
 ```{r}
-R <- 100 # replications
+#Best KNN:
+
+KNN_10_1 <- knn(train = dat_v_train_ord[, 1:9], 
+               dat_v_val_ord[, 1:9], AB_class_train, 
+               k = 1)
+
+tbl_bm_val <- table(KNN_10_1, AB_class_val)
+tbl_bm_val
+
+cm_KNN_opt <-  confusionMatrix(data = tbl_bm_val, reference = dat_v_val_ord[, 1:6], positive = "1")
+```
+
+```{r}
+R <- 50 # replications
 
 # create the matrix to store values 1 row per model
-err_matrix_opt <- matrix(0, ncol=2, nrow=R)
+err_matrix_opt <- matrix(0, ncol=1, nrow=R)
 
-sensitivity_matrix_opt <- matrix(0, ncol=2, nrow=R)
+sensitivity_matrix_opt <- matrix(0, ncol=1, nrow=R)
 
-fmeasure_matrix_opt <- matrix(0, ncol=2, nrow=R)
+fmeasure_matrix_opt <- matrix(0, ncol=1, nrow=R)
 
-gmean_matrix_opt <- matrix(0, ncol=2, nrow=R)
+gmean_matrix_opt <- matrix(0, ncol=1, nrow=R)
 
 # these are optional but I like to see how the model did each run so I can check other output
 KNNcm <- matrix(0, ncol=4, nrow=R)
 
 dat_smaller <- dat[, names(dat_v_train_ord)]
 dat_smaller[,20] <- dat$Absent_time
-
 
 dat_smaller <- dat_smaller[1:737,] # remove lines with non-meaningful data
 
@@ -1136,9 +1158,9 @@ for (r in 1:R){
   
   #Running the classifier
   
-  knn <- knn(data_train[,1:2],
-             test = data_test[,1:2],
-             cl=data_train[,20], k=5)
+  knn <- knn(data_train[,1:9],
+             test = data_test[,1:9],
+             cl=data_train[,20], k=1)
   
   #predict doesn't work with KNN for factors
   knntable <- table(knn, data_test[,20])
@@ -1161,33 +1183,29 @@ for (r in 1:R){
   
   gmean_matrix_opt [[r, 1]] <- sqrt(cm_KNN$byClass[1]* cm_KNN$byClass[2])
   
-  cat("Finished Rep",r, "\n")
+  #cat("Finished Rep",r, "\n")
 }
-colnames(sensitivity_matrix_opt)<- c("KNN", "other")
+colnames(sensitivity_matrix_opt)<- "KNN"
 graph_sens <- melt(sensitivity_matrix_opt)
 ```
 
 ```{r}
-graph <- ggplot(graph_sens,
-                aes(x=Var2, y=value) ) + 
-  geom_boxplot() +
-  theme_minimal()
-
+graph <- ggplot(graph_sens,aes(x=Var2, y=value) )+ geom_boxplot()
 graph
 ```
 
 ```{r}
-colnames(err_matrix_opt)<- c("KNN", "other")
+colnames(err_matrix_opt)<- "KNN"
 graph_err <- melt(err_matrix_opt)
+```
 
-graph <- ggplot(graph_err,
-                aes(x=Var2, y=value) ) + 
-  geom_boxplot() +
-  theme_minimal()
-
+```{r}
+graph <- ggplot(graph_err,aes(x=Var2, y=value) )+ geom_boxplot()
 graph
 ```
-Still do not see significant improvement in model
+
+
+
 
 # Using SMOTE to optimize
 
@@ -1615,11 +1633,63 @@ ggplot(graph_gmean,aes(x=Var2, y=value) )+ geom_boxplot()
 load( file='sensmatrix.RData')
 
 
-#I can't get this to reimport but I think this is the code to bind cols together
 comp_matrix_sens <- cbind(sensitivity_matrix_opt[,4], sensitivity_matrix[,1])
+
+colnames(comp_matrix_sens)<- c("Optimized","Original")
 
 graph_comparison <- melt(comp_matrix_sens)
 
-ggplot(graph_comparison,aes(x=Var2, y=value) )+ geom_boxplot()
+ggplot(graph_comparison,aes(x=Var2, y=value) )+ geom_boxplot() +labs(x= "Model", y= "Sensitivity") + 
+  theme_minimal()
 ```
 
+```{r}
+set.seed(1876)
+  splitIndex <- createDataPartition(dat_v$Absent_time, p = .50,
+                                    list = FALSE,
+                                    times = 1)
+  
+  trainSplit <- dat_v[ splitIndex,]
+  testSplit <- dat_v[-splitIndex,]
+  
+  trainSplit$Absent_time <- as.factor(trainSplit$Absent_time)
+  trainSplit <- SMOTE(Absent_time ~ ., trainSplit, perc.over = 100, perc.under=200)
+  
+knn <- knn(trainSplit[,1:order[4,1]],
+             test = testSplit[,1:order[4,1]],
+             cl=trainSplit[,20], k=order[4,2])
+  knntable4 <- table(knn, testSplit[,20])
+  
+  cm_KNN4 <-  confusionMatrix(data = knntable4, reference = testSplit[,20], positive = "1")
+  
+cm_KNN4
+```
+
+```{r}
+set.seed(1876)
+dat1 <- dat[-1]
+
+#scale
+scale <- sapply(dat1, is.numeric)
+dat1[scale] <- lapply(dat1[scale],scale)
+p <- .6 # proportion of data for training
+w <- sample(1:nrow(dat1), nrow(dat1)*p, replace=F)
+data_train <-dat1[w,] 
+data_test <- dat1[-w,]
+  
+  ################################################################ knn
+
+#Running the classifier
+
+  knn <- knn(data_train[-20],
+                       test = data_test[-20],
+                       cl=data_train$Absent_time, k=2)
+  
+#predict doesn't work with KNN for factors
+ knntable <- table(knn, data_test$Absent_time)
+ 
+#generate confusion matrix ( the 1 tells the model we care about that output)
+ cm_KNN <-  confusionMatrix(data = knntable, reference = data_test[,-20], positive = "1")
+ 
+cm_KNN
+```

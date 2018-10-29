@@ -19,6 +19,15 @@ colnames(dat) <- c("ID", "Reason", "Month", "Day", "Seasons", "Transportation_ex
 
 
 nums <- unlist(lapply(dat, is.numeric))  
+
+for(r in 1:nrow(dat)){
+  if(dat$Month[r] == 0){
+    dat$Month[r] <- NA
+  }
+}
+
+dat <- na.omit(dat)
+
 dat.num <- dat[ , nums]
 
 #change variable represent missed time one day or greater
