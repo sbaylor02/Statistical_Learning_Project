@@ -1,7 +1,8 @@
-####################
-STOP; RUN ALL CODE FROM THROUGH After the EDA Response Variable SECTION PRIOR TO CODING FURTHER!!!!!!!!!!!!!!!!!!!!
-#####################
-
+---
+output:
+  word_document: default
+  html_document: default
+---
 
 ---
 title: "Statistical Learning Project"
@@ -29,7 +30,6 @@ library(e1071)
 library(mlbench)
 library(plyr)
 library(DMwR)
-
 ```
 
 ```{r}
@@ -1425,9 +1425,6 @@ ggplot(data = mean_sens_df, aes(x = var_num, y = k, color = mean_sensitivity)) +
 mean_sens_df[which.max(mean_sens_df$mean_sensitivity), ]
 
 order <- mean_sens_df %>% arrange(desc(mean_sensitivity))
-
-
-
 ```
 
 ```{r eval=FALSE}
@@ -1629,7 +1626,6 @@ ggplot(graph_gmean,aes(x=Var2, y=value) )+ geom_boxplot()
 
 #Comparison to original model
 ```{r}
-
 load( file='sensmatrix.RData')
 
 
