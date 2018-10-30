@@ -63,6 +63,11 @@ nums <- unlist(lapply(dat, is.numeric))
 dat.num <- dat[ , nums]
 ```
 
+```{r}
+sapply(dat, function(x){sum(is.na(x))})
+```
+
+
 ## EDA Response Variable
 
 ### Absent_time
@@ -642,7 +647,7 @@ for (r in 1:R){
 # subsetting data to training and testing data
 p <- .6 # proportion of data for training
 w <- sample(1:nrow(dat1), nrow(dat1)*p, replace=F)
-data_train <-dat1[w,] 
+data_train <- dat1[w,] 
 data_test <- dat1[-w,]
   
   ################################################################ knn
