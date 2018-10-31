@@ -2,7 +2,7 @@
 output:
   word_document: default
   html_document: default
-   toc: true
+  toc: true
 ---
 
 ---
@@ -754,7 +754,7 @@ data_test <- dat1[-w,]
   rfcm [[r,3]] <-  cm_rf$table[2,1]
   rfcm [[r,4]] <-  cm_rf$table[2,2]
   
- err_matrix [[r,4]] <-  (cm_glm$table[1,2]+cm_glm$table[2,1])/nrow( data_test)
+ err_matrix [[r,4]] <-  (cm_rf$table[1,2]+cm_rf$table[2,1])/nrow( data_test)
   
  sensitivity_matrix[[r, 4]] <- cm_rf$byClass[1]
  
@@ -1425,7 +1425,7 @@ ggplot(data = mean_sens_df2, aes(x = var_num, y = k, color = mean_sensitivity)) 
 
 #Repeat test with top 5 choices and resampled training/test data
 
-```{r eval=FALSE}
+```{r }
 R <- 100 # replications
 
 
@@ -1593,7 +1593,7 @@ for (r in 1:R){
   
   gmean_matrix_opt [[r, 5]] <- sqrt(cm_KNN5$byClass[1]* cm_KNN5$byClass[2])
   
-  cat("Finished Rep",r, "\n")
+  #cat("Finished Rep",r, "\n")
 }
 colnames(sensitivity_matrix_opt)<- c("mod1","mod2","mod3","mod4","mod5")
 graph_sens <- melt(sensitivity_matrix_opt)
@@ -1617,6 +1617,8 @@ graph_gmean <- melt(gmean_matrix_opt)
 
 ggplot(graph_gmean,aes(x=Var2, y=value) )+ geom_boxplot()+ theme_minimal()
 ```
+
+
 
 #Comparison to original model
 ```{r}
